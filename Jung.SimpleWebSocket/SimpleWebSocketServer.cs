@@ -11,20 +11,22 @@ namespace Jung.SimpleWebSocket
     /// Initializes a new instance of the <see cref="SimpleWebSocketServer"/> class that listens
     /// for incoming connection attempts on the specified local IP address and port number.
     /// </summary>
-    /// <param name="host">A local ip address</param>
-    /// <param name="port">A port on which to listen for incomming connection attemps</param>
+    /// <param name="localIpAddress">A local ip address</param>
+    /// <param name="port">A port on which to listen for incoming connection attempts</param>
     /// <param name="logger">A logger to write internal log messages</param>
-    public class SimpleWebSocketServer(string host, int port, ILogger? logger = null) : IWebSocketServer, IDisposable
+    public class SimpleWebSocketServer(IPAddress localIpAddress, int port, ILogger? logger = null) : IWebSocketServer, IDisposable
     {
         /// <inheritdoc/>
         public event Action<string>? MessageReceived;
+        /// <inheritdoc/>
+        public event Action<byte[]>? BinaryMessageReceived;
         /// <inheritdoc/>
         public event Action<object?>? ClientDisconnected;
         /// <inheritdoc/>
         public event Action<object?>? ClientConnected;
 
         /// <inheritdoc/>
-        public string Host { get; } = host;
+        public IPAddress LocalIpAddress { get; } = localIpAddress;
         /// <inheritdoc/>
         public int Port { get; } = port;
 
@@ -39,17 +41,24 @@ namespace Jung.SimpleWebSocket
             _cancellationTokenSource = new CancellationTokenSource();
             var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _cancellationTokenSource.Token);
 
-            _server = new TcpListener(IPAddress.Parse(Host), Port);
+            _server = new TcpListener(LocalIpAddress, Port);
             _server.Start();
 
-            LogInternal($"Server started at {Host}:{Port}");
+            LogInternal($"Server started at {LocalIpAddress}:{Port}");
             while (!linkedTokenSource.IsCancellationRequested)
             {
-                // Accept the client
-                var client = await _server.AcceptTcpClientAsync(linkedTokenSource.Token);
+                try
+                {
+                    // Accept the client
+                    var client = await _server.AcceptTcpClientAsync(linkedTokenSource.Token);
 
-                LogInternal("Client connected", $"Client connected from {client.Client.RemoteEndPoint}");
-                await HandleClientAsync(client, linkedTokenSource.Token);
+                    LogInternal("Client connected", $"Client connected from {client.Client.RemoteEndPoint}");
+                    await HandleClientAsync(client, linkedTokenSource.Token);
+                }
+                catch (Exception exception)
+                {
+                    _logger?.LogError(exception, "Error accepting _client");
+                }
             }
         }
 
@@ -83,7 +92,7 @@ namespace Jung.SimpleWebSocket
             _ = Task.Run(() => ClientConnected?.Invoke(null), cancellationToken);
 
             // Start listening for messages
-            LogInternal("Connection upgrated, now listening.");
+            LogInternal("Connection upgraded, now listening.");
             await ProcessWebSocketMessagesAsync(_webSocket, cancellationToken);
         }
 
@@ -104,8 +113,9 @@ namespace Jung.SimpleWebSocket
                 }
                 else if (result.MessageType == WebSocketMessageType.Binary)
                 {
-                    // Handle the binary message - 
+                    // Handle the binary message
                     LogInternal($"Binary message received", $"Binary message received, length: {result.Count} bytes");
+                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(buffer[..result.Count]), cancellationToken);
                 }
                 else if (result.MessageType == WebSocketMessageType.Close)
                 {

@@ -49,7 +49,7 @@ internal class SocketWrapper(NetworkStream networkStream)
             response.Headers.Add("Connection", "Upgrade");
             response.Headers.Add("Upgrade", "websocket");
             response.Headers.Add("Sec-WebSocket-Accept", secWebSocketAcceptString);
-            await SendWebSocketHeaders(response, cancellationToken);
+            await SendWebSocketResponseHeaders(response, cancellationToken);
 
             return WebSocket.CreateFromStream(_networkStream, true, protocol, TimeSpan.FromSeconds(30));
         }
@@ -63,17 +63,27 @@ internal class SocketWrapper(NetworkStream networkStream)
         }
     }
 
-    private async Task SendWebSocketHeaders(WebContext response, CancellationToken cancellationToken)
+    private async Task SendWebSocketResponseHeaders(WebContext context, CancellationToken cancellationToken)
     {
-        var sb = new StringBuilder("HTTP/1.1 101 Switching Protocols\r\n");
+        var sb = new StringBuilder($"HTTP/1.1 101 Switching Protocols\r\n");
+        AddHeaders(context, sb);
+        FinishMessage(sb);
+
+        byte[] responseBytes = Encoding.UTF8.GetBytes(sb.ToString());
+        await _networkStream.WriteAsync(responseBytes, cancellationToken);
+    }
+
+    private void AddHeaders(WebContext response, StringBuilder sb)
+    {
         foreach (string header in response.Headers)
         {
             sb.Append($"{header}: {response.Headers[header]}\r\n");
         }
-        sb.Append("\r\n");
+    }
 
-        byte[] responseBytes = Encoding.UTF8.GetBytes(sb.ToString());
-        await _networkStream.WriteAsync(responseBytes, cancellationToken);
+    private void FinishMessage(StringBuilder sb)
+    {
+        sb.Append("\r\n");
     }
 
     private static void ValidateWebSocketHeaders(WebContext context)
@@ -107,7 +117,7 @@ internal class SocketWrapper(NetworkStream networkStream)
         {
             if (subProtocol != null)
             {
-                throw new WebSocketServerException($"The WebSocket client did not request any protocols, but server attempted to accept '{subProtocol}' protocol(s).");
+                throw new WebSocketServerException($"The WebSocket _client did not request any protocols, but server attempted to accept '{subProtocol}' protocol(s).");
             }
             return false;
         }
@@ -124,7 +134,7 @@ internal class SocketWrapper(NetworkStream networkStream)
                 return true;
             }
         }
-        throw new WebSocketServerException($"The WebSocket client requested the following protocols: '{clientSecWebSocketProtocol}', but the server accepted '{subProtocol}' protocol(s).");
+        throw new WebSocketServerException($"The WebSocket _client requested the following protocols: '{clientSecWebSocketProtocol}', but the server accepted '{subProtocol}' protocol(s).");
     }
 
     internal static string GetSecWebSocketAcceptString(string secWebSocketKey)

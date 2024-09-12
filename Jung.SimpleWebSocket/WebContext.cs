@@ -4,16 +4,12 @@ namespace Jung.SimpleWebSocket;
 
 internal class WebContext
 {
-    private readonly string _request = string.Empty;
+    private readonly string _content;
     private NameValueCollection? _headers;
 
-    public WebContext(string request)
+    public WebContext(string? content = null)
     {
-        _request = request;
-    }
-
-    public WebContext()
-    {
+        _content = content ?? string.Empty;
     }
 
     public NameValueCollection Headers
@@ -28,7 +24,7 @@ internal class WebContext
     private NameValueCollection ParseHeaders()
     {
         var headers = new NameValueCollection();
-        var requestLines = _request.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        var requestLines = _content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
         for (int i = 1; i < requestLines.Length; i++)
         {
             var line = requestLines[i];

@@ -1,4 +1,6 @@
-﻿namespace Jung.SimpleWebSocket.Contracts;
+﻿using System.Net;
+
+namespace Jung.SimpleWebSocket.Contracts;
 
 /// <summary>
 /// Represents a WebSocket server.
@@ -6,9 +8,9 @@
 public interface IWebSocketServer
 {
     /// <summary>
-    /// Gets the host of the WebSocket server.
+    /// Gets the local ip address of the WebSocket server.
     /// </summary>
-    string Host { get; }
+    IPAddress LocalIpAddress { get; }
 
     /// <summary>
     /// Gets the port of the WebSocket server.
@@ -19,6 +21,11 @@ public interface IWebSocketServer
     /// Event that is raised when a message is received from a client.
     /// </summary>
     event Action<string>? MessageReceived;
+
+    /// <summary>
+    /// Event that is raised when a binary message is received from a client.
+    /// </summary>
+    event Action<byte[]>? BinaryMessageReceived;
 
     /// <summary>
     /// Event that is raised when a client is disconnected.
