@@ -5,6 +5,8 @@ VisualStudioVersion = 17.11.35222.181
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jung.SimpleWebSocket", "Jung.SimpleWebSocket\Jung.SimpleWebSocket.csproj", "{793B04E9-6326-425A-A29C-A736CFD1E0C0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jung.SimpleWebSocketTest", "Jung.SimpleWebSocketTest\Jung.SimpleWebSocketTest.csproj", "{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{793B04E9-6326-425A-A29C-A736CFD1E0C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{793B04E9-6326-425A-A29C-A736CFD1E0C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{793B04E9-6326-425A-A29C-A736CFD1E0C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
