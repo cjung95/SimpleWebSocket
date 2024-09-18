@@ -1,6 +1,4 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
+# This workflow will build a .NET project and push to NuGet
 name: .NET
 
 on:
@@ -10,7 +8,7 @@ on:
   pull_request:
     branches: 
       - "main"  # Pull requests to the main branch
-      
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,4 +36,8 @@ jobs:
 
     - name: Pack NuGet package
       run: dotnet pack --configuration Release --no-restore --output ./nupkg
+      if: github.ref == 'refs/heads/main' || github.event_name == 'push'
+
+    - name: Push NuGet package
+      run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
       if: github.ref == 'refs/heads/main' || github.event_name == 'push'
