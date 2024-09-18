@@ -22,9 +22,11 @@ jobs:
         dotnet-version: 8.0.400
     - name: Restore dependencies
       run: dotnet restore
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
+    - name: Build Debug
+      run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
+    - name: Build Release
+      run: dotnet build --configuration Release --no-restore
     - name: Pack NuGet package
       run: dotnet pack --configuration Release --no-restore --output ./nupkg
