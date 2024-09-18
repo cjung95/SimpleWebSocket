@@ -1,4 +1,7 @@
-﻿namespace Jung.SimpleWebSocket;
+﻿// This file is part of the Jung SimpleWebSocket project.
+// The project is licensed under the MIT license.
+
+namespace Jung.SimpleWebSocket.Exceptions;
 
 /// <summary>
 /// Represents an exception that is thrown when an error occurs in the <see cref="SimpleWebSocketServer"/> class.
