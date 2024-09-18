@@ -36,8 +36,8 @@ jobs:
 
     - name: Pack NuGet package
       run: dotnet pack --configuration Release --no-restore --output ./nupkg
-      if: github.ref == 'refs/heads/main' || github.event_name == 'push'
+      if: startsWith(github.ref, 'refs/tags/v') && github.ref_name == 'main'
 
     - name: Push NuGet package
       run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
-      if: github.ref == 'refs/heads/main' || github.event_name == 'push'
+      if: startsWith(github.ref, 'refs/tags/v') && github.ref_name == 'main'
