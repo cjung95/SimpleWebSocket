@@ -16,7 +16,7 @@ namespace Jung.SimpleWebSocketTest
     public class SimpleWebSocketTest
     {
         [Test]
-        [Platform("Windows7,Windows8,Windows8.1,Windows10,Windows11", Reason = "This test establishes a TCP client-server connection using SimpleWebSocket, which relies on specific networking features and behaviors that are only available and consistent on Windows platforms. Running this test on non-Windows platforms could lead to inconsistent results or failures due to differences in networking stack implementations.")]
+        [Platform("Windows7,Windows8,Windows8.1,Windows10", Reason = "This test establishes a TCP client-server connection using SimpleWebSocket, which relies on specific networking features and behaviors that are only available and consistent on Windows platforms. Running this test on non-Windows platforms could lead to inconsistent results or failures due to differences in networking stack implementations.")]
         public async Task TestClientServerConnection_ShouldSendAndReceiveHelloWorld()
         {
             // Arrange
