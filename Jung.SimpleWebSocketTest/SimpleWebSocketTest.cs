@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
 
-// internals of the simple websocket are visible to the test project
+// internals of the simple web socket are visible to the test project
 // because of the InternalsVisibleTo attribute in the AssemblyInfo.cs
 
 namespace Jung.SimpleWebSocketTest
@@ -20,8 +20,8 @@ namespace Jung.SimpleWebSocketTest
         public async Task TestClientServerConnection_ShouldSendAndReceiveHelloWorld()
         {
             // Arrange
-            using var server = new SimpleWebSocketServer(IPAddress.Any, 8010);
-            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/");
+            using var server = new SimpleWebSocketServer(IPAddress.Any, 80);
+            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 80, "/");
 
             string _receivedMessage = string.Empty;
             var messageResetEvent = new ManualResetEvent(false);
@@ -50,21 +50,21 @@ namespace Jung.SimpleWebSocketTest
             server.Start(CancellationToken.None);
             await client.ConnectAsync(CancellationToken.None);
 
-            WaitForManualResetEventOrThrow(connectResetEvent, 100);
+            WaitForManualResetEventOrThrow(connectResetEvent);
 
             await client.SendMessageAsync("Hello World", CancellationToken.None);
-            WaitForManualResetEventOrThrow(messageResetEvent, 10);
+            WaitForManualResetEventOrThrow(messageResetEvent);
 
-            await client.DisconnectAsync();
-            WaitForManualResetEventOrThrow(disconnectResetEvent, 1);
+            await client.DisconnectAsync(CancellationToken.None);
+            WaitForManualResetEventOrThrow(disconnectResetEvent);
 
             // Assert
             Assert.That(_receivedMessage, Is.EqualTo("Hello World"));
         }
 
-        private void WaitForManualResetEventOrThrow(ManualResetEvent manualResetEvent, int timeout, [CallerArgumentExpression(nameof(manualResetEvent))] string? resetEventName = null)
+        private static void WaitForManualResetEventOrThrow(ManualResetEvent manualResetEvent, int millisecondsTimeout = 100, [CallerArgumentExpression(nameof(manualResetEvent))] string? resetEventName = null)
         {
-            if (!manualResetEvent.WaitOne(timeout))
+            if (!manualResetEvent.WaitOne(millisecondsTimeout))
             {
                 throw new TimeoutException($"Timeout waiting for {resetEventName}");
             }

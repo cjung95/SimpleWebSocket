@@ -8,6 +8,7 @@ namespace Jung.SimpleWebSocket.Contracts
     internal interface ITcpClient : IDisposable
     {
         EndPoint? RemoteEndPoint { get; }
+        bool IsConnected { get; }
 
         INetworkStream GetStream();
 

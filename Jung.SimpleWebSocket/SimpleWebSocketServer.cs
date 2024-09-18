@@ -15,14 +15,8 @@ namespace Jung.SimpleWebSocket
     /// Initializes a new instance of the <see cref="SimpleWebSocketServer"/> class that listens
     /// for incoming connection attempts on the specified local IP address and port number.
     /// </summary>
-    public class SimpleWebSocketServer : IWebSocketServer, IDisposable
+    public class SimpleWebSocketServer : SimpleWebSocketBase, IWebSocketServer, IDisposable
     {
-        /// <inheritdoc/>
-        public event Action<string>? MessageReceived;
-        /// <inheritdoc/>
-        public event Action<byte[]>? BinaryMessageReceived;
-        /// <inheritdoc/>
-        public event Action<object?>? ClientDisconnected;
         /// <inheritdoc/>
         public event Action<object?>? ClientConnected;
 
@@ -31,19 +25,21 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public int Port { get; }
 
+        /// <inheritdoc/>
+        public bool IsListening => _server?.IsListening ?? false;
+
         private CancellationTokenSource _cancellationTokenSource = new();
         private ITcpListener? _server;
         private IWebSocket? _webSocket;
-        private readonly ILogger? _logger;
 
         /// <param name="localIpAddress">A local ip address</param>
         /// <param name="port">A port on which to listen for incoming connection attempts</param>
         /// <param name="logger">A logger to write internal log messages</param>
         public SimpleWebSocketServer(IPAddress localIpAddress, int port, ILogger? logger = null)
+            : base(logger)
         {
             LocalIpAddress = localIpAddress;
             Port = port;
-            _logger = logger;
         }
 
         /// <summary>
@@ -54,16 +50,18 @@ namespace Jung.SimpleWebSocket
         /// <param name="tcpListener">A wrapped tcp listener</param>
         /// <param name="logger">>A logger to write internal log messages</param>
         internal SimpleWebSocketServer(IPAddress localIpAddress, int port, ITcpListener tcpListener, ILogger? logger = null)
+            : base(logger)
         {
             LocalIpAddress = localIpAddress;
             Port = port;
             _server = tcpListener;
-            _logger = logger;
         }
 
         /// <inheritdoc/>
         public void Start(CancellationToken cancellation)
         {
+            if(IsListening) throw new WebSocketServerException("Server is already started");
+
             _cancellationTokenSource = new CancellationTokenSource();
             var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _cancellationTokenSource.Token);
 
@@ -125,37 +123,6 @@ namespace Jung.SimpleWebSocket
             await ProcessWebSocketMessagesAsync(_webSocket, cancellationToken);
         }
 
-        private async Task ProcessWebSocketMessagesAsync(IWebSocket ws, CancellationToken cancellationToken)
-        {
-            var buffer = new byte[1024 * 4]; // Buffer for incoming data
-            while (ws.State == WebSocketState.Open)
-            {
-                // Read the next message
-                WebSocketReceiveResult result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
-
-                if (result.MessageType == WebSocketMessageType.Text)
-                {
-                    // Handle the text message
-                    string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    LogInternal("Message received", $"Message received: \"{receivedMessage}\"");
-                    _ = Task.Run(() => MessageReceived?.Invoke(receivedMessage), cancellationToken);
-                }
-                else if (result.MessageType == WebSocketMessageType.Binary)
-                {
-                    // Handle the binary message
-                    LogInternal($"Binary message received", $"Binary message received, length: {result.Count} bytes");
-                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(buffer[..result.Count]), cancellationToken);
-                }
-                else if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    LogInternal("WebSocket closed by _client");
-                    _ = Task.Run(() => ClientDisconnected?.Invoke(null), cancellationToken);
-                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                    break;
-                }
-            }
-        }
-
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -163,20 +130,5 @@ namespace Jung.SimpleWebSocket
             _server?.Dispose();
             GC.SuppressFinalize(this);
         }
-
-        private void LogInternal(string infoLogMessage, string debugLogMessage = "")
-        {
-#pragma warning disable CA2254 // Template should be a static expression
-            if (!string.IsNullOrEmpty(debugLogMessage) && (_logger?.IsEnabled(LogLevel.Debug) ?? false))
-            {
-                _logger?.LogDebug(debugLogMessage);
-            }
-            else
-            {
-                _logger?.LogInformation(infoLogMessage);
-            }
-#pragma warning restore CA2254 // Template should be a static expression
-        }
     }
 }
-

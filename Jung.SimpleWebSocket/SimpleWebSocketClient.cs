@@ -19,17 +19,8 @@ namespace Jung.SimpleWebSocket
     /// <param name="port">A port on which to listen for incoming connection attempts</param>
     /// <param name="requestPath">The web socket request path</param>
     /// <param name="logger">A logger to write internal log messages</param>
-    public class SimpleWebSocketClient(string hostName, int port, string requestPath, ILogger? logger = null) : IWebSocketClient, IDisposable
+    public class SimpleWebSocketClient(string hostName, int port, string requestPath, ILogger? logger = null) : SimpleWebSocketBase(logger), IWebSocketClient, IDisposable
     {
-        /// <inheritdoc/>
-        public event Action<string>? MessageReceived;
-        /// <inheritdoc/>
-        public event Action<byte[]>? BinaryMessageReceived;
-        /// <inheritdoc/>
-        public event Action<object?>? ClientDisconnected;
-        /// <inheritdoc/>
-        public event Action<object?>? ClientConnected;
-
         /// <inheritdoc/>
         public string HostName { get; } = hostName;
         /// <inheritdoc/>
@@ -37,15 +28,19 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public string RequestPath { get; } = requestPath;
 
+        /// <inheritdoc/>
+        public bool IsConnected => _client?.IsConnected ?? false;
+
         private CancellationTokenSource _cancellationTokenSource = new();
-        private ITcpClient? _client;
+        private TcpClientWrapper? _client;
         private IWebSocket? _webSocket;
         private INetworkStream? _stream;
-        private readonly ILogger? _logger = logger;
 
         /// <inheritdoc/>
         public async Task ConnectAsync(CancellationToken cancellation)
         {
+            if(IsConnected) throw new WebSocketServerException(message: "Client is already connected");
+
             _cancellationTokenSource = new CancellationTokenSource();
             var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _cancellationTokenSource.Token);
 
@@ -53,10 +48,10 @@ namespace Jung.SimpleWebSocket
             {
                 _client = new TcpClientWrapper();
                 await _client.ConnectAsync(HostName, Port);
-                await HandleWebsocketInitiation(_client, linkedTokenSource.Token);
+                await HandleWebSocketInitiation(_client, linkedTokenSource.Token);
 
                 LogInternal("Connection upgraded, now listening.");
-                _ = HandleConnection(linkedTokenSource.Token);
+                _ = ProcessWebSocketMessagesAsync(_webSocket!, linkedTokenSource.Token);
             }
             catch (Exception exception)
             {
@@ -66,16 +61,16 @@ namespace Jung.SimpleWebSocket
         }
 
         /// <inheritdoc/>
-        public async Task DisconnectAsync()
+        public async Task DisconnectAsync(CancellationToken cancellationToken)
         {
             if (_webSocket != null && (_webSocket.State == WebSocketState.Open || _webSocket.State == WebSocketState.CloseReceived))
             {
-                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
             }
             _client?.Dispose();
         }
 
-        private async Task HandleWebsocketInitiation(ITcpClient client, CancellationToken cancellationToken)
+        private async Task HandleWebSocketInitiation(TcpClientWrapper client, CancellationToken cancellationToken)
         {
             // Upgrade the connection to a WebSocket
             _stream = client.GetStream();
@@ -107,43 +102,6 @@ namespace Jung.SimpleWebSocket
             }
         }
 
-        private async Task HandleConnection(CancellationToken cancellationToken)
-        {
-            if (_webSocket == null)
-            {
-                throw new InvalidOperationException("WebSocket is not initialized");
-            }
-
-            var buffer = new byte[1024 * 4]; // Buffer for incoming data
-            while (_webSocket.State == WebSocketState.Open)
-            {
-
-                // Read the next message
-                WebSocketReceiveResult result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
-
-                if (result.MessageType == WebSocketMessageType.Text)
-                {
-                    // Handle the text message
-                    string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    LogInternal("Message received", $"Message received: \"{receivedMessage}\"");
-                    _ = Task.Run(() => MessageReceived?.Invoke(receivedMessage), cancellationToken);
-                }
-                else if (result.MessageType == WebSocketMessageType.Binary)
-                {
-                    // Handle the binary message
-                    LogInternal($"Binary message received", $"Binary message received, length: {result.Count} bytes");
-                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(buffer[..result.Count]), cancellationToken);
-                }
-                else if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    LogInternal("WebSocket closed by _client");
-                    _ = Task.Run(() => ClientDisconnected?.Invoke(null), cancellationToken);
-                    await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                    break;
-                }
-            }
-        }
-
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -152,20 +110,5 @@ namespace Jung.SimpleWebSocket
             _client?.Dispose();
             GC.SuppressFinalize(this);
         }
-
-        private void LogInternal(string infoLogMessage, string debugLogMessage = "")
-        {
-#pragma warning disable CA2254 // Template should be a static expression
-            if (!string.IsNullOrEmpty(debugLogMessage) && (_logger?.IsEnabled(LogLevel.Debug) ?? false))
-            {
-                _logger?.LogDebug(debugLogMessage);
-            }
-            else
-            {
-                _logger?.LogInformation(infoLogMessage);
-            }
-#pragma warning restore CA2254 // Template should be a static expression
-        }
     }
 }
-
