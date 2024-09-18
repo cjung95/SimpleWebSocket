@@ -5,6 +5,8 @@ namespace Jung.SimpleWebSocket.Contracts
 {
     internal interface ITcpListener : IDisposable
     {
+        bool IsListening { get; }
+
         void Start();
         Task<ITcpClient> AcceptTcpClientAsync(CancellationToken cancellationToken);
         void Stop();

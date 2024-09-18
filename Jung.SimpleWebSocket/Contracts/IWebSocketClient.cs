@@ -6,7 +6,7 @@ namespace Jung.SimpleWebSocket.Contracts;
 /// <summary>
 /// Represents a WebSocket server.
 /// </summary>
-public interface IWebSocketClient : IDisposable
+public interface IWebSocketClient : IWebSocketBase, IDisposable
 {
     /// <summary>
     /// Gets the local ip address of the WebSocket server.
@@ -24,24 +24,9 @@ public interface IWebSocketClient : IDisposable
     string RequestPath { get; }
 
     /// <summary>
-    /// Event that is raised when a message is received from a client.
+    /// Gets a value indicating whether the client is connected.
     /// </summary>
-    event Action<string>? MessageReceived;
-
-    /// <summary>
-    /// Event that is raised when a binary message is received from a client.
-    /// </summary>
-    event Action<byte[]>? BinaryMessageReceived;
-
-    /// <summary>
-    /// Event that is raised when a client is disconnected.
-    /// </summary>
-    event Action<object?>? ClientDisconnected;
-
-    /// <summary>
-    /// Event that is raised when a client is connected.
-    /// </summary>
-    event Action<object?>? ClientConnected;
+    bool IsConnected { get; }
 
     /// <summary>
     /// Sends a message to all connected clients asynchronously.
@@ -62,5 +47,5 @@ public interface IWebSocketClient : IDisposable
     /// Stops the WebSocket server asynchronously.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task DisconnectAsync();
+    Task DisconnectAsync(CancellationToken cancellation);
 }

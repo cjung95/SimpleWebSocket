@@ -7,21 +7,12 @@ using System.Net.Sockets;
 
 namespace Jung.SimpleWebSocket.Wrappers
 {
-    internal class TcpListenerWrapper(IPAddress localIpAddress, int port) : ITcpListener
+    internal class TcpListenerWrapper(IPAddress localIpAddress, int port) : TcpListener(localIpAddress, port), ITcpListener
     {
-        private readonly TcpListener _tcpListener = new(localIpAddress, port);
-
-        public void Start() => _tcpListener.Start();
-
-        public void Stop() => _tcpListener.Stop();
-
-        public void Dispose()
+        public bool IsListening => Active;
+        public new async Task<ITcpClient> AcceptTcpClientAsync(CancellationToken cancellationToken)
         {
-            _tcpListener?.Dispose();
-        }
-        public async Task<ITcpClient> AcceptTcpClientAsync(CancellationToken cancellationToken)
-        {
-            var client = await _tcpListener.AcceptTcpClientAsync(cancellationToken);
+            var client = await base.AcceptTcpClientAsync(cancellationToken);
             return new TcpClientWrapper(client);
         }
     }

@@ -10,9 +10,13 @@ namespace Jung.SimpleWebSocket.Models;
 /// <summary>
 /// Represents the context of a web request.
 /// </summary>
-internal class WebContext
+/// <remarks>
+/// Initializes a new instance of the <see cref="WebContext"/> class.
+/// </remarks>
+/// <param name="content">The content of the web request.</param>
+internal class WebContext(string? content = null)
 {
-    private readonly string _content = string.Empty;
+    private readonly string _content = content ?? string.Empty;
     private NameValueCollection? _headers;
     private string? _hostName;
     private int _port;
@@ -113,15 +117,6 @@ internal class WebContext
         {
             _requestPath = value;
         }
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="WebContext"/> class.
-    /// </summary>
-    /// <param name="content">The content of the web request.</param>
-    public WebContext(string? content = null)
-    {
-        _content = content ?? string.Empty;
     }
 
     /// <summary>

@@ -8,7 +8,7 @@ namespace Jung.SimpleWebSocket.Contracts;
 /// <summary>
 /// Represents a WebSocket server.
 /// </summary>
-public interface IWebSocketServer : IDisposable
+public interface IWebSocketServer : IWebSocketBase, IDisposable
 {
     /// <summary>
     /// Gets the local ip address of the WebSocket server.
@@ -21,19 +21,9 @@ public interface IWebSocketServer : IDisposable
     int Port { get; }
 
     /// <summary>
-    /// Event that is raised when a message is received from a client.
+    /// Gets a value indicating whether the server is listening.
     /// </summary>
-    event Action<string>? MessageReceived;
-
-    /// <summary>
-    /// Event that is raised when a binary message is received from a client.
-    /// </summary>
-    event Action<byte[]>? BinaryMessageReceived;
-
-    /// <summary>
-    /// Event that is raised when a client is disconnected.
-    /// </summary>
-    event Action<object?>? ClientDisconnected;
+    bool IsListening { get; }
 
     /// <summary>
     /// Event that is raised when a client is connected.
