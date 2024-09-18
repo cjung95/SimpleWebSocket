@@ -5,28 +5,37 @@ name: .NET
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - "*"  # Runs on all branches
   pull_request:
-    branches: [ "main" ]
-
+    branches: 
+      - "main"  # Pull requests to the main branch
+      
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.400
+
     - name: Restore dependencies
       run: dotnet restore
+
     - name: Build Debug
       run: dotnet build --no-restore
+
     - name: Test
       run: dotnet test --no-build --verbosity normal
+
     - name: Build Release
       run: dotnet build --configuration Release --no-restore
+      if: github.ref == 'refs/heads/main' || github.event_name == 'push'
+
     - name: Pack NuGet package
       run: dotnet pack --configuration Release --no-restore --output ./nupkg
+      if: github.ref == 'refs/heads/main' || github.event_name == 'push'
