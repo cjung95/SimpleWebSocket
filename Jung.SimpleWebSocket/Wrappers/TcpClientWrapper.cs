@@ -21,7 +21,7 @@ namespace Jung.SimpleWebSocket.Wrappers
             _client = new TcpClient();
         }
 
-        public bool IsConnected => _client.Connected;
+        public bool Connected => _client.Connected;
 
         public EndPoint? RemoteEndPoint => _client.Client.RemoteEndPoint;
 

@@ -20,8 +20,8 @@ namespace Jung.SimpleWebSocketTest
         public async Task TestClientServerConnection_ShouldSendAndReceiveHelloWorld()
         {
             // Arrange
-            using var server = new SimpleWebSocketServer(IPAddress.Any, 80);
-            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 80, "/");
+            using var server = new SimpleWebSocketServer(IPAddress.Any, 8010);
+            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/");
 
             string _receivedMessage = string.Empty;
             var messageResetEvent = new ManualResetEvent(false);

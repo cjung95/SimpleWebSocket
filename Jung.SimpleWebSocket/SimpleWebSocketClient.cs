@@ -29,7 +29,7 @@ namespace Jung.SimpleWebSocket
         public string RequestPath { get; } = requestPath;
 
         /// <inheritdoc/>
-        public bool IsConnected => _client?.IsConnected ?? false;
+        public bool IsConnected => _client?.Connected ?? false;
 
         private CancellationTokenSource _cancellationTokenSource = new();
         private TcpClientWrapper? _client;
@@ -39,7 +39,7 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public async Task ConnectAsync(CancellationToken cancellation)
         {
-            if(IsConnected) throw new WebSocketServerException(message: "Client is already connected");
+            if (IsConnected) throw new WebSocketServerException(message: "Client is already connected");
 
             _cancellationTokenSource = new CancellationTokenSource();
             var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _cancellationTokenSource.Token);
@@ -86,19 +86,19 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public async Task SendMessageAsync(string message, CancellationToken cancellationToken)
         {
-            if (_webSocket != null)
+            if (!IsConnected) throw new WebSocketServerException(message: "Client is not connected");
+            if(_webSocket == null) throw new WebSocketServerException(message: "WebSocket is not initialized");
+
+            try
             {
-                try
-                {
-                    // Send the message
-                    var buffer = Encoding.UTF8.GetBytes(message);
-                    await _webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, cancellationToken);
-                    LogInternal("Message sent", $"Message sent: \"{message}\"");
-                }
-                catch (Exception exception)
-                {
-                    throw new WebSocketServerException(message: "Error sending message", innerException: exception);
-                }
+                // Send the message
+                var buffer = Encoding.UTF8.GetBytes(message);
+                await _webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, cancellationToken);
+                LogInternal("Message sent", $"Message sent: \"{message}\"");
+            }
+            catch (Exception exception)
+            {
+                throw new WebSocketServerException(message: "Error sending message", innerException: exception);
             }
         }
 

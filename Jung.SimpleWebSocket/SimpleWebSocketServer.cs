@@ -25,6 +25,8 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public int Port { get; }
 
+        List<ITcpClient> Clients { get; } = new();
+
         /// <inheritdoc/>
         public bool IsListening => _server?.IsListening ?? false;
 
@@ -60,7 +62,7 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public void Start(CancellationToken cancellation)
         {
-            if(IsListening) throw new WebSocketServerException("Server is already started");
+            if (IsListening) throw new WebSocketServerException("Server is already started");
 
             _cancellationTokenSource = new CancellationTokenSource();
             var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _cancellationTokenSource.Token);
@@ -78,7 +80,8 @@ namespace Jung.SimpleWebSocket
                         var client = await _server.AcceptTcpClientAsync(linkedTokenSource.Token);
 
                         LogInternal("Client connected", $"Client connected from {client.RemoteEndPoint}");
-                        await HandleClientAsync(client, linkedTokenSource.Token);
+                        Clients.Add(client);
+                        _ = HandleClientAsync(client, linkedTokenSource.Token);
                     }
                     catch (Exception exception)
                     {
