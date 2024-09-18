@@ -44,7 +44,7 @@ And here's a simple example for the client:
 using Jung.SimpleWebSocket;
 
 // Create a WebSocket client and send "Hello World!"
-var client = new SimpleWebSocketClient("ws://localhost", 8010, "/");
+var client = new SimpleWebSocketClient("localhost", 8010, "/");
 client.MessageReceived += (m) => Console.WriteLine(m);
 await client.ConnectAsync(CancellationToken.None);
 await client.SendMessageAsync("Hello World!", CancellationToken.None);
