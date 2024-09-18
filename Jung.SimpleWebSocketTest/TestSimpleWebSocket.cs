@@ -2,9 +2,6 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket;
-using Jung.SimpleWebSocket.Contracts;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using NUnit.Framework;
 using System.Diagnostics;
 using System.Net;
@@ -19,7 +16,8 @@ namespace Jung.SimpleWebSocketTest
     public class SimpleWebSocketTest
     {
         [Test]
-        public async Task TestSendingAndReceivingHelloWorld()
+        [Platform("Windows7,Windows8,Windows8.1,Windows10,Windows11", Reason = "This test establishes a TCP client-server connection using SimpleWebSocket, which relies on specific networking features and behaviors that are only available and consistent on Windows platforms. Running this test on non-Windows platforms could lead to inconsistent results or failures due to differences in networking stack implementations.")]
+        public async Task TestClientServerConnection_ShouldSendAndReceiveHelloWorld()
         {
             // Arrange
             using var server = new SimpleWebSocketServer(IPAddress.Any, 8010);
@@ -53,7 +51,6 @@ namespace Jung.SimpleWebSocketTest
             await client.ConnectAsync(CancellationToken.None);
 
             WaitForManualResetEventOrThrow(connectResetEvent, 100);
-
 
             await client.SendMessageAsync("Hello World", CancellationToken.None);
             WaitForManualResetEventOrThrow(messageResetEvent, 10);
