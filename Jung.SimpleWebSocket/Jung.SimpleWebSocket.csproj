@@ -1,17 +1,24 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+	<!-- Application properties -->
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<Version>1.1.0</Version>
+	</PropertyGroup>
+
+	<!-- Package properties -->
+	<PropertyGroup>
 		<Title>Simple Web Socket</Title>
 		<Authors>cjung95</Authors>
 		<Description>A lightweight and easy-to-use library for working with WebSocket connections.</Description>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<Copyright>Christoph Jung</Copyright>
-		<Version>1.1.0</Version>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<RepositoryUrl>https://github.com/cjung95/SimpleWebSocket</RepositoryUrl>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	</PropertyGroup>
 
 	<ItemGroup>
