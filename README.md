@@ -22,7 +22,7 @@ var server = new SimpleWebSocketServer(System.Net.IPAddress.Any, 8010);
 server.ClientConnected += (sender, e) => System.Console.WriteLine($"Client connected");
 server.MessageReceived += (sender, e) => System.Console.WriteLine($"Message received: {e.Message}");
 server.ClientDisconnected += (sender, e) => System.Console.WriteLine($"Client disconnected");
-server.Start(CancellationToken.None);
+server.Start();
 ```
 
 And here's a simple example for the client:
