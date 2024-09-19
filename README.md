@@ -1,7 +1,7 @@
 # SimpleWebSocket
 
-Jung.SimpleWebSocket is a lightweight and easy-to-use library for working with WebSocket connections in .NET.
-It is built on top of the `System.Net.WebSockets` namespace and provides a simple API for creating WebSocket clients and servers.
+Jung.SimpleWebSocket is a lightweight and easy-to-use library for working with WebSocket connections in .NET. \
+It is built on top of the `System.Net.WebSockets` namespace and provides a simple API for creating WebSocket clients and servers. \
 By using a TcpListener and TcpClient, Jung.SimpleWebSocket is able to handle WebSocket connections without the need for a full-fledged HTTP server.
 You also don't need admin rights to run the server.
 
