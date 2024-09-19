@@ -55,7 +55,7 @@ internal class WebContext(string? content = null)
                 }
                 else
                 {
-                    throw new WebSocketServerException("Host header is missing");
+                    throw new WebSocketUpgradeException("Host header is missing");
                 }
             }
             return _hostName;
@@ -214,7 +214,7 @@ internal class WebContext(string? content = null)
         get
         {
             string[] lines = GetContentLines();
-            if (lines.Length == 0) throw new WebSocketServerException("Status line is missing");
+            if (lines.Length == 0) throw new WebSocketUpgradeException("Status line is missing");
             return lines[0];
         }
     }
@@ -227,7 +227,7 @@ internal class WebContext(string? content = null)
         get
         {
             string[] lines = GetContentLines();
-            if (lines.Length == 0) throw new WebSocketServerException("Request line is missing");
+            if (lines.Length == 0) throw new WebSocketUpgradeException("Request line is missing");
             return lines[0];
         }
     }
@@ -240,7 +240,7 @@ internal class WebContext(string? content = null)
     {
         if (_content == null)
         {
-            throw new WebSocketServerException("Content is missing");
+            throw new WebSocketUpgradeException("Content is missing");
         }
         var lines = _content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
         return lines;

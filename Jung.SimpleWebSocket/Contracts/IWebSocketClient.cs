@@ -6,9 +6,9 @@ using Jung.SimpleWebSocket.Delegates;
 namespace Jung.SimpleWebSocket.Contracts;
 
 /// <summary>
-/// Represents a WebSocket server.
+/// Represents A simple WebSocket client.
 /// </summary>
-public interface IWebSocketClient : IWebSocketBase, IDisposable
+public interface IWebSocketClient : IDisposable
 {
     /// <summary>
     /// Gets the local ip address of the WebSocket server.

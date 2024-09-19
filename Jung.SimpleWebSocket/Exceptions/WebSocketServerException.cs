@@ -7,7 +7,7 @@ namespace Jung.SimpleWebSocket.Exceptions;
 /// Represents an exception that is thrown when an error occurs in the <see cref="SimpleWebSocketServer"/> class.
 /// </summary>
 [Serializable]
-public class WebSocketServerException : Exception
+public class WebSocketServerException : SimpleWebSocketException
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="WebSocketServerException"/> class.

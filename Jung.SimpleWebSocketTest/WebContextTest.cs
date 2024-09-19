@@ -43,7 +43,7 @@ namespace Jung.SimpleWebSocketTest
             var invalidRequest = new WebContext("GET / HTTP/1.1\r\n\r\n");
 
             // Act & Assert
-            var ex = Assert.Throws<WebSocketServerException>(() => { var hostName = invalidRequest.HostName; });
+            var ex = Assert.Throws<WebSocketUpgradeException>(() => { var hostName = invalidRequest.HostName; });
             Assert.That(ex.Message, Is.EqualTo("Host header is missing"));
         }
 
@@ -87,7 +87,7 @@ namespace Jung.SimpleWebSocketTest
             var invalidRequest = new WebContext("\r\n");
 
             // Act & Assert
-            var ex = Assert.Throws<WebSocketServerException>(() => { var requestPath = invalidRequest.RequestPath; });
+            var ex = Assert.Throws<WebSocketUpgradeException>(() => { var requestPath = invalidRequest.RequestPath; });
             Assert.That(ex.Message, Is.EqualTo("Status line is missing"));
         }
 
@@ -171,7 +171,7 @@ namespace Jung.SimpleWebSocketTest
             var context = new WebContext(string.Empty);
 
             // Act & Assert
-            Assert.Throws<WebSocketServerException>(() => { var _ = context.StatusLine; });
+            Assert.Throws<WebSocketUpgradeException>(() => { var _ = context.StatusLine; });
         }
 
         [Test]
@@ -196,7 +196,7 @@ namespace Jung.SimpleWebSocketTest
             var context = new WebContext(string.Empty);
 
             // Act & Assert
-            Assert.Throws<WebSocketServerException>(() => { var _ = context.RequestLine; });
+            Assert.Throws<WebSocketUpgradeException>(() => { var _ = context.RequestLine; });
         }
     }
 }

@@ -17,7 +17,7 @@ using System.Text.RegularExpressions;
 
 namespace Jung.SimpleWebSocket;
 
-internal partial class SocketWrapper
+internal partial class WebSocketUpgradeHandler
 {
     private const string _supportedVersion = "13";
     private const string _webSocketGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -31,13 +31,13 @@ internal partial class SocketWrapper
     private static partial Regex ValidWebSocketPathRegex();
     private static readonly Regex _validPathRegex = ValidWebSocketPathRegex();
 
-    public SocketWrapper(INetworkStream networkStream)
+    public WebSocketUpgradeHandler(INetworkStream networkStream)
     {
         _networkStream = networkStream;
         _websocketHelper = new WebSocketHelper();
     }
 
-    internal SocketWrapper(INetworkStream networkStream, WebSocketHelper websocketHelper)
+    internal WebSocketUpgradeHandler(INetworkStream networkStream, WebSocketHelper websocketHelper)
     {
         _networkStream = networkStream;
         _websocketHelper = websocketHelper;
@@ -85,13 +85,13 @@ internal partial class SocketWrapper
             await SendWebSocketResponseHeaders(response, cancellationToken);
             _acceptedProtocol = subProtocol;
         }
-        catch (WebSocketServerException)
+        catch (WebSocketUpgradeException)
         {
             throw;
         }
         catch (Exception message)
         {
-            throw new WebSocketServerException("Error while accepting the websocket", message);
+            throw new WebSocketException("Error while accepting the websocket", message);
         }
     }
 
@@ -135,23 +135,23 @@ internal partial class SocketWrapper
     {
         if (!context.IsWebSocketRequest)
         {
-            throw new WebSocketServerException("Incoming request is no web socket request");
+            throw new WebSocketUpgradeException("Incoming request is no web socket request");
         }
 
         if (string.IsNullOrEmpty(context.Headers["Sec-WebSocket-Version"]))
         {
-            throw new WebSocketServerException("Missing Sec-WebSocket-Version header");
+            throw new WebSocketUpgradeException("Missing Sec-WebSocket-Version header");
         }
 
         if (!string.Equals(context.Headers["Sec-WebSocket-Version"], _supportedVersion, StringComparison.OrdinalIgnoreCase))
         {
-            throw new WebSocketServerException("Unsupported Sec-WebSocket-Version");
+            throw new WebSocketUpgradeException("Unsupported Sec-WebSocket-Version");
         }
 
         var webSocketKey = context.Headers["Sec-WebSocket-Key"];
         if (!string.IsNullOrWhiteSpace(webSocketKey) && Convert.FromBase64String(webSocketKey).Length != 16)
         {
-            throw new WebSocketServerException("Invalid Sec-WebSocket-Key");
+            throw new WebSocketUpgradeException("Invalid Sec-WebSocket-Key");
         }
     }
 
@@ -165,7 +165,7 @@ internal partial class SocketWrapper
             if (subProtocol != null)
             {
                 // the server specified a protocol
-                throw new WebSocketServerException($"The WebSocket _client did not request any protocols, but server attempted to accept '{subProtocol}' protocol(s).");
+                throw new WebSocketUpgradeException($"The WebSocket _client did not request any protocols, but server attempted to accept '{subProtocol}' protocol(s).");
             }
             // the server should not send the protocol header
             return false;
@@ -186,7 +186,7 @@ internal partial class SocketWrapper
                 return true;
             }
         }
-        throw new WebSocketServerException($"The WebSocket _client requested the following protocols: '{clientSecWebSocketProtocol}', but the server accepted '{subProtocol}' protocol(s).");
+        throw new WebSocketUpgradeException($"The WebSocket _client requested the following protocols: '{clientSecWebSocketProtocol}', but the server accepted '{subProtocol}' protocol(s).");
     }
 
     internal async Task SendUpgradeRequestAsync(WebContext requestContext, CancellationToken token)
@@ -222,21 +222,21 @@ internal partial class SocketWrapper
         // Check if the response contains '101 Switching Protocols'
         if (!response.StatusLine.Contains("101 Switching Protocols"))
         {
-            throw new WebSocketServerException("Invalid status code, expected '101 Switching Protocols'.");
+            throw new WebSocketUpgradeException("Invalid status code, expected '101 Switching Protocols'.");
         }
 
         // Check for required headers 'Upgrade: websocket' and 'Connection: Upgrade'
         if (!response.ContainsHeader("Upgrade", "websocket") ||
             !response.ContainsHeader("Connection", "Upgrade"))
         {
-            throw new WebSocketServerException("Invalid 'Upgrade' or 'Connection' header.");
+            throw new WebSocketUpgradeException("Invalid 'Upgrade' or 'Connection' header.");
         }
 
         // Extract the 'Sec-WebSocket-Accept' value from the server's response
         string? secWebSocketAccept = response.Headers["Sec-WebSocket-Accept"];
         if (string.IsNullOrEmpty(secWebSocketAccept))
         {
-            throw new WebSocketServerException("Missing 'Sec-WebSocket-Accept' header.");
+            throw new WebSocketUpgradeException("Missing 'Sec-WebSocket-Accept' header.");
         }
 
         // Generate the expected 'Sec-WebSocket-Accept' value by concatenating the Sec-WebSocket-Key and GUID
@@ -246,7 +246,7 @@ internal partial class SocketWrapper
         // Compare the computed value with the server's response
         if (secWebSocketAccept != expectedAcceptValue)
         {
-            throw new WebSocketServerException("Invalid 'Sec-WebSocket-Accept' value.");
+            throw new WebSocketUpgradeException("Invalid 'Sec-WebSocket-Accept' value.");
         }
     }
 

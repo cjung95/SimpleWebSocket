@@ -9,7 +9,7 @@ namespace Jung.SimpleWebSocket.Models
     /// <summary>
     /// Represents a WebSocket client of the server.
     /// </summary>
-    public class WebSocketServerClient
+    public class WebSocketServerClient : IDisposable
     {
         /// <summary>
         /// Gets the unique identifier of the WebSocket client.
@@ -86,6 +86,14 @@ namespace Jung.SimpleWebSocket.Models
         {
             ArgumentNullException.ThrowIfNull(webSocket);
             WebSocket = webSocket;
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            WebSocket?.Dispose();
+            ClientConnection?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

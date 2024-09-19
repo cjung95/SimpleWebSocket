@@ -11,7 +11,7 @@ namespace Jung.SimpleWebSocket.Contracts;
 /// <summary>
 /// Represents a WebSocket server.
 /// </summary>
-public interface IWebSocketServer : IWebSocketBase, IDisposable
+public interface IWebSocketServer : IDisposable
 {
     /// <summary>
     /// Gets the local ip address of the WebSocket server.
@@ -73,6 +73,13 @@ public interface IWebSocketServer : IWebSocketBase, IDisposable
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task SendMessageAsync(string clientId, string message, CancellationToken? cancellationToken = null);
+
+    /// <summary>
+    /// Stops the WebSocket server.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task ShutdownServer(CancellationToken? cancellationToken = null);
 
     /// <summary>
     /// Starts the WebSocket server.
