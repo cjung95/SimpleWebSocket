@@ -31,9 +31,9 @@ using Jung.SimpleWebSocket;
 
 // Create a WebSocket server
 var server = new SimpleWebSocketServer(System.Net.IPAddress.Any, 8010);
-server.ClientConnected += (o) => System.Console.WriteLine($"Client connected");
-server.MessageReceived += (m) => System.Console.WriteLine($"Message received: {m}");
-server.ClientDisconnected += (o) => System.Console.WriteLine($"Client disconnected");
+server.ClientConnected += (sender, e) => System.Console.WriteLine($"Client connected");
+server.MessageReceived += (sender, e) => System.Console.WriteLine($"Message received: {e.Message}");
+server.ClientDisconnected += (sender, e) => System.Console.WriteLine($"Client disconnected");
 server.Start(CancellationToken.None);
 ```
 
@@ -44,8 +44,10 @@ And here's a simple example for the client:
 using Jung.SimpleWebSocket;
 
 // Create a WebSocket client and send "Hello World!"
-var client = new SimpleWebSocketClient("localhost", 8010, "/");
-client.MessageReceived += (m) => Console.WriteLine(m);
+var client = new SimpleWebSocketClient(System.Net.IPAddress.Loopback.ToString(), 8010, "/");
+client.MessageReceived += (sender, e) => Console.WriteLine(e.Message);
+client.BinaryMessageReceived += (sender, e) => Console.WriteLine(e.Message);
+client.Disconnected += (sender, e) => Console.WriteLine("Disconnected");
 await client.ConnectAsync(CancellationToken.None);
 await client.SendMessageAsync("Hello World!", CancellationToken.None);
 await client.DisconnectAsync();
