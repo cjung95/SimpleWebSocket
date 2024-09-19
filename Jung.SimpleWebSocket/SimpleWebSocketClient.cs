@@ -2,8 +2,10 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket.Contracts;
+using Jung.SimpleWebSocket.Delegates;
 using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
+using Jung.SimpleWebSocket.Models.EventArguments;
 using Jung.SimpleWebSocket.Wrappers;
 using Microsoft.Extensions.Logging;
 using System.Net.WebSockets;
@@ -32,11 +34,11 @@ namespace Jung.SimpleWebSocket
         public bool IsConnected => _client?.Connected ?? false;
 
         /// <inheritdoc/>
-        public event Action? Disconnected;
+        public event DisconnectedEventHandler? Disconnected;
         /// <inheritdoc/>
-        public event Action<string>? MessageReceived;
+        public event MessageReceivedEventHandler? MessageReceived;
         /// <inheritdoc/>
-        public event Action<byte[]>? BinaryMessageReceived;
+        public event BinaryMessageReceivedEventHandler? BinaryMessageReceived;
 
         /// <summary>
         /// The CancellationTokenSource for the client.
@@ -159,18 +161,18 @@ namespace Jung.SimpleWebSocket
                     // Handle the text message
                     string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
                     LogInternal("Message received", $"Message received: \"{receivedMessage}\"");
-                    _ = Task.Run(() => MessageReceived?.Invoke(receivedMessage), cancellationToken);
+                    _ = Task.Run(() => MessageReceived?.Invoke(this, new MessageReceivedArgs(receivedMessage)), cancellationToken);
                 }
                 else if (result.MessageType == WebSocketMessageType.Binary)
                 {
                     // Handle the binary message
                     LogInternal($"Binary message received", $"Binary message received, length: {result.Count} bytes");
-                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(buffer[..result.Count]), cancellationToken);
+                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(this, new BinaryMessageReceivedArgs(buffer[..result.Count])), cancellationToken);
                 }
                 else if (result.MessageType == WebSocketMessageType.Close)
                 {
                     LogInternal("WebSocket closed");
-                    _ = Task.Run(() => Disconnected?.Invoke(), cancellationToken);
+                    _ = Task.Run(() => Disconnected?.Invoke(this, new DisconnectedArgs(result.CloseStatusDescription ?? string.Empty)), cancellationToken);
                     await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     break;
                 }

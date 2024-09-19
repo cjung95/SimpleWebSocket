@@ -2,6 +2,7 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket.Contracts;
+using Jung.SimpleWebSocket.Delegates;
 using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
@@ -25,13 +26,13 @@ namespace Jung.SimpleWebSocket
         public int Port { get; }
 
         /// <inheritdoc/>
-        public event Action<ClientConnectedArgs>? ClientConnected;
+        public event ClientConnectedEventHandler? ClientConnected;
         /// <inheritdoc/>
-        public event Action<ClientDisconnectedArgs>? ClientDisconnected;
+        public event ClientDisconnectedEventHandler? ClientDisconnected;
         /// <inheritdoc/>
-        public event Action<ClientMessageReceivedArgs>? MessageReceived;
+        public event ClientMessageReceivedEventHandler? MessageReceived;
         /// <inheritdoc/>
-        public event Action<ClientBinaryMessageReceivedArgs>? BinaryMessageReceived;
+        public event ClientBinaryMessageReceivedEventHandler? BinaryMessageReceived;
 
         /// <summary>
         /// A dictionary of active clients.
@@ -172,7 +173,7 @@ namespace Jung.SimpleWebSocket
                 await socketWrapper.AcceptWebSocketAsync(request, cancellationToken);
                 client.UpdateWebSocket(socketWrapper.CreateWebSocket(isServer: true));
 
-                _ = Task.Run(() => ClientConnected?.Invoke(new ClientConnectedArgs(client.Id)), cancellationToken);
+                _ = Task.Run(() => ClientConnected?.Invoke(this, new ClientConnectedArgs(client.Id)), cancellationToken);
 
                 // Start listening for messages
                 LogInternal("Connection upgraded, now listening.");
@@ -216,18 +217,18 @@ namespace Jung.SimpleWebSocket
                     // Handle the text message
                     string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
                     LogInternal("Message received", $"Message received: \"{receivedMessage}\"");
-                    _ = Task.Run(() => MessageReceived?.Invoke(new ClientMessageReceivedArgs(receivedMessage, client.Id)), cancellationToken);
+                    _ = Task.Run(() => MessageReceived?.Invoke(this, new ClientMessageReceivedArgs(receivedMessage, client.Id)), cancellationToken);
                 }
                 else if (result.MessageType == WebSocketMessageType.Binary)
                 {
                     // Handle the binary message
                     LogInternal($"Binary message received", $"Binary message received, length: {result.Count} bytes");
-                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(new ClientBinaryMessageReceivedArgs(buffer[..result.Count], client.Id)), cancellationToken);
+                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(this, new ClientBinaryMessageReceivedArgs(buffer[..result.Count], client.Id)), cancellationToken);
                 }
                 else if (result.MessageType == WebSocketMessageType.Close)
                 {
                     LogInternal("WebSocket closed");
-                    _ = Task.Run(() => ClientDisconnected?.Invoke(new ClientDisconnectedArgs(result.CloseStatusDescription ?? string.Empty, client.Id)), cancellationToken);
+                    _ = Task.Run(() => ClientDisconnected?.Invoke(this, new ClientDisconnectedArgs(result.CloseStatusDescription ?? string.Empty, client.Id)), cancellationToken);
                     await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     break;
                 }

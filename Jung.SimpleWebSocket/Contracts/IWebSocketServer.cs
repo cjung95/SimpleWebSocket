@@ -1,6 +1,7 @@
 ﻿// This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
+using Jung.SimpleWebSocket.Delegates;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
 using System.Net;
@@ -40,22 +41,22 @@ public interface IWebSocketServer : IWebSocketBase, IDisposable
     /// <summary>
     /// Event that is raised when a client is connected.
     /// </summary>
-    event Action<ClientConnectedArgs>? ClientConnected;
+    event ClientConnectedEventHandler? ClientConnected;
 
     /// <summary>
     /// Event that is raised when a client is disconnected.
     /// </summary>
-    event Action<ClientDisconnectedArgs>? ClientDisconnected;
+    event ClientDisconnectedEventHandler ClientDisconnected;
 
     /// <summary>
     /// Event that is raised when a message is received from a client.
     /// </summary>
-    event Action<ClientMessageReceivedArgs>? MessageReceived;
+    event ClientMessageReceivedEventHandler? MessageReceived;
 
     /// <summary>
     /// Event that is raised when a binary message is received from a client.
     /// </summary>
-    event Action<ClientBinaryMessageReceivedArgs>? BinaryMessageReceived;
+    event ClientBinaryMessageReceivedEventHandler? BinaryMessageReceived;
 
     /// <summary>
     /// Gets a client by its id.

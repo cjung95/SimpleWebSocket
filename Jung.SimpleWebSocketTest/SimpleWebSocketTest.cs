@@ -35,26 +35,26 @@ namespace Jung.SimpleWebSocketTest
             var disconnectResetEvent = new ManualResetEvent(false);
             var connectResetEvent = new ManualResetEvent(false);
 
-            server.MessageReceived += (receivedMessageArgs) =>
+            server.MessageReceived += (sender, receivedMessageArgs) =>
             {
-               server.SendMessageAsync(receivedMessageArgs.ClientId, receivedMessageArgs.Message).Wait();
+                server.SendMessageAsync(receivedMessageArgs.ClientId, receivedMessageArgs.Message).Wait();
             };
 
-            server.ClientConnected += (obj) =>
+            server.ClientConnected += (sender, obj) =>
             {
                 Debug.WriteLine("Client connected");
                 connectResetEvent.Set();
             };
 
-            server.ClientDisconnected += (obj) =>
+            server.ClientDisconnected += (sender, obj) =>
             {
                 receivedClosingDescription = obj.ClosingStatusDescription;
                 disconnectResetEvent.Set();
             };
 
-            client.MessageReceived += (message) =>
+            client.MessageReceived += (sender, obj) =>
             {
-                receivedMessage = message;
+                receivedMessage = obj.Message;
                 messageResetEvent.Set();
             };
 
@@ -97,7 +97,7 @@ namespace Jung.SimpleWebSocketTest
             object clientDisconnectLock = new();
             var clientsDisconnectedCount = 0;
 
-            server.MessageReceived += (receivedMessageArgs) =>
+            server.MessageReceived += (sender, receivedMessageArgs) =>
             {
                 lock (receivedMessageLock)
                 {
@@ -108,7 +108,7 @@ namespace Jung.SimpleWebSocketTest
                 }
             };
 
-            server.ClientConnected += (obj) =>
+            server.ClientConnected += (sender, obj) =>
             {
                 lock (receivedMessageLock)
                 {
@@ -116,7 +116,7 @@ namespace Jung.SimpleWebSocketTest
                 }
             };
 
-            server.ClientDisconnected += (obj) =>
+            server.ClientDisconnected += (sender, obj) =>
             {
                 lock (clientDisconnectLock)
                 {
@@ -154,7 +154,6 @@ namespace Jung.SimpleWebSocketTest
                 Assert.That(clientsDisconnectedCount, Is.EqualTo(clientsCount));
             });
         }
-
 
         private static void WaitForManualResetEventOrThrow(ManualResetEvent manualResetEvent, int millisecondsTimeout = 100, [CallerArgumentExpression(nameof(manualResetEvent))] string? resetEventName = null)
         {

@@ -4,8 +4,7 @@
 namespace Jung.SimpleWebSocket.Models.EventArguments;
 
 /// <summary>
-/// Represents the arguments of the event when a message is received from a client.
+/// Represents the arguments of the event when a binary message is received from the server.
 /// </summary>
 /// <param name="Message">The message that was received.</param>
-/// <param name="ClientId">The unique identifier of the client that sent the message.</param>
-public record ClientBinaryMessageReceivedArgs(byte[] Message, string ClientId);
+public record BinaryMessageReceivedArgs(byte[] Message);

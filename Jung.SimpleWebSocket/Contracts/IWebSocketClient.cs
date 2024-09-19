@@ -1,6 +1,8 @@
 ﻿// This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
+using Jung.SimpleWebSocket.Delegates;
+
 namespace Jung.SimpleWebSocket.Contracts;
 
 /// <summary>
@@ -31,17 +33,17 @@ public interface IWebSocketClient : IWebSocketBase, IDisposable
     /// <summary>
     /// Event that is raised when a message is received from a client.
     /// </summary>
-    event Action<string>? MessageReceived;
+    event MessageReceivedEventHandler? MessageReceived;
 
     /// <summary>
     /// Event that is raised when a binary message is received from a client.
     /// </summary>
-    event Action<byte[]>? BinaryMessageReceived;
+    event BinaryMessageReceivedEventHandler? BinaryMessageReceived;
 
     /// <summary>
     /// Event that is raised when a client is disconnected.
     /// </summary>
-    event Action? Disconnected;
+    event DisconnectedEventHandler? Disconnected;
 
     /// <summary>
     /// Sends a message to all connected clients asynchronously.
