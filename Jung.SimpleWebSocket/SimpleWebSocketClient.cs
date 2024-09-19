@@ -31,18 +31,41 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public bool IsConnected => _client?.Connected ?? false;
 
+        /// <inheritdoc/>
+        public event Action? Disconnected;
+        /// <inheritdoc/>
+        public event Action<string>? MessageReceived;
+        /// <inheritdoc/>
+        public event Action<byte[]>? BinaryMessageReceived;
+
+        /// <summary>
+        /// The CancellationTokenSource for the client.
+        /// </summary>
         private CancellationTokenSource _cancellationTokenSource = new();
+
+        /// <summary>
+        /// The client that is used to connect to the server.
+        /// </summary>
         private TcpClientWrapper? _client;
+
+        /// <summary>
+        /// The WebSocket that is used to communicate with the server.
+        /// </summary>
         private IWebSocket? _webSocket;
+
+        /// <summary>
+        /// The stream that is used to communicate with the server.
+        /// </summary>
         private INetworkStream? _stream;
 
         /// <inheritdoc/>
-        public async Task ConnectAsync(CancellationToken cancellation)
+        public async Task ConnectAsync(CancellationToken? cancellationToken = null)
         {
             if (IsConnected) throw new WebSocketServerException(message: "Client is already connected");
+            cancellationToken ??= CancellationToken.None;
 
             _cancellationTokenSource = new CancellationTokenSource();
-            var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _cancellationTokenSource.Token);
+            var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken.Value, _cancellationTokenSource.Token);
 
             try
             {
@@ -61,15 +84,22 @@ namespace Jung.SimpleWebSocket
         }
 
         /// <inheritdoc/>
-        public async Task DisconnectAsync(CancellationToken cancellationToken)
+        public async Task DisconnectAsync(string closingStatusDescription = "Closing", CancellationToken? cancellationToken = null)
         {
+            cancellationToken ??= CancellationToken.None;
             if (_webSocket != null && (_webSocket.State == WebSocketState.Open || _webSocket.State == WebSocketState.CloseReceived))
             {
-                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
+                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, closingStatusDescription, cancellationToken.Value);
             }
             _client?.Dispose();
         }
 
+        /// <summary>
+        /// Handles the WebSocket initiation.
+        /// </summary>
+        /// <param name="client">The client to use for the WebSocket initiation</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <returns>The asynchronous task</returns>
         private async Task HandleWebSocketInitiation(TcpClientWrapper client, CancellationToken cancellationToken)
         {
             // Upgrade the connection to a WebSocket
@@ -84,21 +114,66 @@ namespace Jung.SimpleWebSocket
         }
 
         /// <inheritdoc/>
-        public async Task SendMessageAsync(string message, CancellationToken cancellationToken)
+        public async Task SendMessageAsync(string message, CancellationToken? cancellationToken = null)
         {
             if (!IsConnected) throw new WebSocketServerException(message: "Client is not connected");
-            if(_webSocket == null) throw new WebSocketServerException(message: "WebSocket is not initialized");
+            if (_webSocket == null) throw new WebSocketServerException(message: "WebSocket is not initialized");
+            cancellationToken ??= CancellationToken.None;
 
             try
             {
                 // Send the message
                 var buffer = Encoding.UTF8.GetBytes(message);
-                await _webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, cancellationToken);
+                await _webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, cancellationToken.Value);
                 LogInternal("Message sent", $"Message sent: \"{message}\"");
             }
             catch (Exception exception)
             {
                 throw new WebSocketServerException(message: "Error sending message", innerException: exception);
+            }
+        }
+
+        /// <summary>
+        /// Processes the WebSocket messages.
+        /// </summary>
+        /// <param name="webSocket">The WebSocket whose messages to process</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <returns>An asynchronous task</returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        private async Task ProcessWebSocketMessagesAsync(IWebSocket webSocket, CancellationToken cancellationToken)
+        {
+            if (webSocket == null)
+            {
+                throw new InvalidOperationException("WebSocket is not initialized");
+            }
+
+            var buffer = new byte[1024 * 4]; // Buffer for incoming data
+            while (webSocket.State == WebSocketState.Open)
+            {
+
+                // Read the next message
+                WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+
+                if (result.MessageType == WebSocketMessageType.Text)
+                {
+                    // Handle the text message
+                    string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    LogInternal("Message received", $"Message received: \"{receivedMessage}\"");
+                    _ = Task.Run(() => MessageReceived?.Invoke(receivedMessage), cancellationToken);
+                }
+                else if (result.MessageType == WebSocketMessageType.Binary)
+                {
+                    // Handle the binary message
+                    LogInternal($"Binary message received", $"Binary message received, length: {result.Count} bytes");
+                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(buffer[..result.Count]), cancellationToken);
+                }
+                else if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    LogInternal("WebSocket closed");
+                    _ = Task.Run(() => Disconnected?.Invoke(), cancellationToken);
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                    break;
+                }
             }
         }
 

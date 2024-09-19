@@ -1,6 +1,8 @@
 ﻿// This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
+using Jung.SimpleWebSocket.Models;
+using Jung.SimpleWebSocket.Models.EventArguments;
 using System.Net;
 
 namespace Jung.SimpleWebSocket.Contracts;
@@ -26,22 +28,55 @@ public interface IWebSocketServer : IWebSocketBase, IDisposable
     bool IsListening { get; }
 
     /// <summary>
+    /// Gets the client ids of the connected clients.
+    /// </summary>
+    string[] ClientIds { get; }
+
+    /// <summary>
+    /// Gets the number of connected clients.
+    /// </summary>
+    int ClientCount { get; }
+
+    /// <summary>
     /// Event that is raised when a client is connected.
     /// </summary>
-    event Action<object?>? ClientConnected;
+    event Action<ClientConnectedArgs>? ClientConnected;
+
+    /// <summary>
+    /// Event that is raised when a client is disconnected.
+    /// </summary>
+    event Action<ClientDisconnectedArgs>? ClientDisconnected;
+
+    /// <summary>
+    /// Event that is raised when a message is received from a client.
+    /// </summary>
+    event Action<ClientMessageReceivedArgs>? MessageReceived;
+
+    /// <summary>
+    /// Event that is raised when a binary message is received from a client.
+    /// </summary>
+    event Action<ClientBinaryMessageReceivedArgs>? BinaryMessageReceived;
+
+    /// <summary>
+    /// Gets a client by its id.
+    /// </summary>
+    /// <param name="clientId">The id of the client</param>
+    /// <returns>The client</returns>
+    WebSocketServerClient GetClientById(string clientId);
 
     /// <summary>
     /// Sends a message to all connected clients asynchronously.
     /// </summary>
+    /// <param name="clientId">The client id to send the message to.</param>
     /// <param name="message">The message to send.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SendMessageAsync(string message, CancellationToken cancellationToken);
+    Task SendMessageAsync(string clientId, string message, CancellationToken? cancellationToken = null);
 
     /// <summary>
     /// Starts the WebSocket server.
     /// </summary>
-    /// <param name="cancellation">The cancellation token.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    void Start(CancellationToken cancellation);
+    void Start(CancellationToken? cancellationToken = null);
 }
