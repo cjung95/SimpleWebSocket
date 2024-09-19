@@ -19,7 +19,7 @@ namespace Jung.SimpleWebSocket.Wrappers
 
         public Task<WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
         {
-           return webSocket.ReceiveAsync(buffer, cancellationToken);
+            return webSocket.ReceiveAsync(buffer, cancellationToken);
         }
 
         public Task CloseAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken)

@@ -2,43 +2,52 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket.Contracts;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 
 namespace Jung.SimpleWebSocket.Wrappers
 {
-    internal class TcpClientWrapper : ITcpClient
+    internal class TcpClientWrapper : TcpClient, ITcpClient
     {
-        private readonly TcpClient _client;
+        /// <summary>
+        /// The internal constructor of the <see cref="TcpClient"/> class that takes a <see cref="Socket"/> as a parameter.
+        /// </summary>
+        private readonly ConstructorInfo _internalSocketConstructor = typeof(TcpClient).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, [typeof(Socket)])!;
 
-        public TcpClientWrapper(TcpClient client)
+        /// <summary>
+        /// Creates a new instance of the <see cref="TcpClientWrapper"/> class.
+        /// </summary>
+        internal TcpClientWrapper() : base()
         {
-            _client = client;
         }
 
-        public TcpClientWrapper()
+        /// <summary>
+        /// Creates a new instance of the <see cref="TcpClientWrapper"/> class.
+        /// </summary>
+        /// <param name="socket">The socket that should be used for the <see cref="TcpClientWrapper"/></param>
+        internal TcpClientWrapper(Socket socket)
         {
-            _client = new TcpClient();
+            try
+            {
+                _internalSocketConstructor.Invoke(this, [socket]);
+            }
+            catch (Exception)
+            {
+                Trace.TraceError("Check the constructor of the TcpClient class!!!");
+                throw;
+            }
         }
 
-        public bool IsConnected => _client.Connected;
+        /// <inheritdoc/>
+        public EndPoint? RemoteEndPoint => Client.RemoteEndPoint;
 
-        public EndPoint? RemoteEndPoint => _client.Client.RemoteEndPoint;
-
-        public INetworkStream GetStream()
+        /// <inheritdoc/>
+        public new INetworkStream GetStream()
         {
-            var stream = _client.GetStream();
+            var stream = base.GetStream();
             return new NetworkStreamWrapper(stream);
-        }
-
-        public Task ConnectAsync(string host, int port)
-        {
-            return _client.ConnectAsync(host, port);
-        }
-
-        public void Dispose()
-        {
-            _client?.Dispose();
         }
     }
 }

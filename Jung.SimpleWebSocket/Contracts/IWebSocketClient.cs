@@ -1,12 +1,14 @@
 ﻿// This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
+using Jung.SimpleWebSocket.Delegates;
+
 namespace Jung.SimpleWebSocket.Contracts;
 
 /// <summary>
-/// Represents a WebSocket server.
+/// Represents A simple WebSocket client.
 /// </summary>
-public interface IWebSocketClient : IWebSocketBase, IDisposable
+public interface IWebSocketClient : IDisposable
 {
     /// <summary>
     /// Gets the local ip address of the WebSocket server.
@@ -29,23 +31,40 @@ public interface IWebSocketClient : IWebSocketBase, IDisposable
     bool IsConnected { get; }
 
     /// <summary>
+    /// Event that is raised when a message is received from a client.
+    /// </summary>
+    event MessageReceivedEventHandler? MessageReceived;
+
+    /// <summary>
+    /// Event that is raised when a binary message is received from a client.
+    /// </summary>
+    event BinaryMessageReceivedEventHandler? BinaryMessageReceived;
+
+    /// <summary>
+    /// Event that is raised when a client is disconnected.
+    /// </summary>
+    event DisconnectedEventHandler? Disconnected;
+
+    /// <summary>
     /// Sends a message to all connected clients asynchronously.
     /// </summary>
     /// <param name="message">The message to send.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SendMessageAsync(string message, CancellationToken cancellationToken);
+    Task SendMessageAsync(string message, CancellationToken? cancellationToken = null);
 
     /// <summary>
     /// Starts the WebSocket server asynchronously.
     /// </summary>
-    /// <param name="cancellation">The cancellation token.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task ConnectAsync(CancellationToken cancellation);
+    Task ConnectAsync(CancellationToken? cancellationToken = null);
 
     /// <summary>
     /// Stops the WebSocket server asynchronously.
     /// </summary>
+    /// <param name="closingStatusDescription">The description why the closing status is initiated.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task DisconnectAsync(CancellationToken cancellation);
+    Task DisconnectAsync(string closingStatusDescription = "Closing", CancellationToken? cancellationToken = null);
 }

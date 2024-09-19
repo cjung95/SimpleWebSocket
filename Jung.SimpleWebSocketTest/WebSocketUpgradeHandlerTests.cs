@@ -12,17 +12,17 @@ using System.Text;
 
 namespace Jung.SimpleWebSocketTest
 {
-    public class SocketWrapperTests
+    public class WebSocketUpgradeHandlerTests
     {
         private readonly Mock<INetworkStream> _mockNetworkStream;
         private readonly Mock<WebSocketHelper> _mockWebSocketHelper;
-        private readonly SocketWrapper _socketWrapper;
+        private readonly WebSocketUpgradeHandler _socketWrapper;
 
-        public SocketWrapperTests()
+        public WebSocketUpgradeHandlerTests()
         {
             _mockNetworkStream = new Mock<INetworkStream>();
             _mockWebSocketHelper = new Mock<WebSocketHelper>();
-            _socketWrapper = new SocketWrapper(_mockNetworkStream.Object, _mockWebSocketHelper.Object);
+            _socketWrapper = new WebSocketUpgradeHandler(_mockNetworkStream.Object, _mockWebSocketHelper.Object);
         }
 
         [Test]
@@ -87,7 +87,7 @@ namespace Jung.SimpleWebSocketTest
             var requestContext = WebContext.CreateRequest("localhost", 80, "/");
 
             // Act & Assert
-            var ex = Assert.Throws<WebSocketServerException>(() => SocketWrapper.ValidateUpgradeResponse(responseContext, requestContext));
+            var ex = Assert.Throws<WebSocketUpgradeException>(() => WebSocketUpgradeHandler.ValidateUpgradeResponse(responseContext, requestContext));
             Assert.That(ex.Message, Is.EqualTo("Invalid status code, expected '101 Switching Protocols'."));
         }
 
@@ -99,7 +99,7 @@ namespace Jung.SimpleWebSocketTest
             var requestContext = WebContext.CreateRequest("localhost", 80, "/");
 
             // Act & Assert
-            var ex = Assert.Throws<WebSocketServerException>(() => SocketWrapper.ValidateUpgradeResponse(responseContext, requestContext));
+            var ex = Assert.Throws<WebSocketUpgradeException>(() => WebSocketUpgradeHandler.ValidateUpgradeResponse(responseContext, requestContext));
             Assert.That(ex.Message, Is.EqualTo("Invalid 'Upgrade' or 'Connection' header."));
         }
 
@@ -111,7 +111,7 @@ namespace Jung.SimpleWebSocketTest
             var requestContext = WebContext.CreateRequest("localhost", 80, "/");
 
             // Act & Assert
-            var ex = Assert.Throws<WebSocketServerException>(() => SocketWrapper.ValidateUpgradeResponse(responseContext, requestContext));
+            var ex = Assert.Throws<WebSocketUpgradeException>(() => WebSocketUpgradeHandler.ValidateUpgradeResponse(responseContext, requestContext));
             Assert.That(ex.Message, Is.EqualTo("Missing 'Sec-WebSocket-Accept' header."));
         }
 
@@ -124,7 +124,7 @@ namespace Jung.SimpleWebSocketTest
             requestContext.Headers.Add("Sec-WebSocket-Key", "dummy");
 
             // Act & Assert
-            var ex = Assert.Throws<WebSocketServerException>(() => SocketWrapper.ValidateUpgradeResponse(responseContext, requestContext));
+            var ex = Assert.Throws<WebSocketUpgradeException>(() => WebSocketUpgradeHandler.ValidateUpgradeResponse(responseContext, requestContext));
             Assert.That(ex.Message, Is.EqualTo("Invalid 'Sec-WebSocket-Accept' value."));
         }
     }
