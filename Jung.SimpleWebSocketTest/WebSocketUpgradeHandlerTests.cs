@@ -18,6 +18,7 @@ namespace Jung.SimpleWebSocketTest
         private readonly Mock<WebSocketHelper> _mockWebSocketHelper;
         private readonly WebSocketUpgradeHandler _socketWrapper;
 
+
         public WebSocketUpgradeHandlerTests()
         {
             _mockNetworkStream = new Mock<INetworkStream>();
@@ -51,15 +52,55 @@ namespace Jung.SimpleWebSocketTest
         {
             // Arrange
             var cancellationToken = new CancellationToken();
-            var request = new WebContext($"GET {path} HTTP/1.1\n\rHost: {hostname}:{port}\n\rConnection: upgrade\n\rUpgrade: websocket\n\rSec-WebSocket-Version: 13\n\rSec-WebSocket-Key: {Convert.ToBase64String(Guid.NewGuid().ToByteArray())}\n\r\n\r");
+            var request = new WebContext(
+                $"GET {path} HTTP/1.1\n\r" +
+                $"Host: {hostname}:{port}\n\r" +
+                $"Connection: upgrade\n\r" +
+                $"Upgrade: websocket\n\r" +
+                $"Sec-WebSocket-Version: 13\n\r" +
+                $"Sec-WebSocket-Key: {Convert.ToBase64String(Guid.NewGuid().ToByteArray())}\n\r\n\r");
+
             var response = string.Empty;
             _mockNetworkStream.Setup(ns => ns.WriteAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>())).Callback<byte[], CancellationToken>((buffer, ct) => { response = Encoding.UTF8.GetString(buffer); });
-           
+
             // Act
             await _socketWrapper.AcceptWebSocketAsync(request, cancellationToken);
 
             // Assert
             Assert.That(response, Does.Contain("HTTP/1.1 101 Switching Protocols"));
+        }
+
+        [TestCase("foo, bar", "foo")]
+        [TestCase("foo, bar", "bar")]
+        [TestCase("foo, bar")]
+        public async Task AcceptWebSocketAsync_ShouldSendUpgradeResponseWithCorrectProtocol(string protocolHeaderValue = "", string? serverSubprotocol = null)
+        {
+            // Arrange
+            var cancellationToken = new CancellationToken();
+            var request = new WebContext(
+                $"GET / HTTP/1.1\n\r" +
+                $"Host: localhost\n\r" +
+                $"Connection: upgrade\n\r" +
+                $"Upgrade: websocket\n\r" +
+                $"Sec-WebSocket-Version: 13\n\r" +
+                $"Sec-WebSocket-Key: {Convert.ToBase64String(Guid.NewGuid().ToByteArray())}\n\r" +
+                $"Sec-WebSocket-Protocol: {protocolHeaderValue}\n\r\n\r");
+
+            var response = string.Empty;
+            _mockNetworkStream.Setup(ns => ns.WriteAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>())).Callback<byte[], CancellationToken>((buffer, ct) => { response = Encoding.UTF8.GetString(buffer); });
+
+            // Act
+            await _socketWrapper.AcceptWebSocketAsync(request, serverSubprotocol, cancellationToken);
+
+            // Assert
+            Assert.Multiple(() =>
+            {
+                Assert.That(response, Does.Contain("HTTP/1.1 101 Switching Protocols"));
+                if (serverSubprotocol != null)
+                {
+                    Assert.That(response, Does.Contain($"Sec-WebSocket-Protocol: {serverSubprotocol}"));
+                }
+            });
         }
 
         [Test]
@@ -126,6 +167,42 @@ namespace Jung.SimpleWebSocketTest
             // Act & Assert
             var ex = Assert.Throws<WebSocketUpgradeException>(() => WebSocketUpgradeHandler.ValidateUpgradeResponse(responseContext, requestContext));
             Assert.That(ex.Message, Is.EqualTo("Invalid 'Sec-WebSocket-Accept' value."));
+        }
+
+        [Test]
+        public void ProcessWebSocketProtocolHeader_ShouldReturnServerProtocol()
+        {
+            // Arrange 
+            var clientProtocol = "foo, bar";
+            var serverProtocol = "foo";
+
+            // Act
+            WebSocketUpgradeHandler.ProcessWebSocketProtocolHeader(clientProtocol, serverProtocol, out var acceptProtocol);
+            // Assert
+            Assert.That(acceptProtocol, Is.EqualTo("foo"));
+        }
+
+        [Test]
+        public void ProcessWebSocketProtocolHeader_ShouldThrow_WhenServerProtocolIsEmpty()
+        {
+            // Arrange 
+            var protocol = "foo";
+
+            // Act & Assert
+            var ex = Assert.Throws<WebSocketUpgradeException>(() => WebSocketUpgradeHandler.ProcessWebSocketProtocolHeader(null, protocol, out _));
+            Assert.That(ex.Message, Does.Contain("The WebSocket client did not request any protocols, but"));
+
+        }
+
+        [Test]
+        public void ProcessWebSocketProtocolHeader_ShouldThrow_WhenClientProtocolIsEmpty()
+        {
+            // Arrange 
+            var protocol = "foo, bar";
+
+            // Act & Assert
+            WebSocketUpgradeHandler.ProcessWebSocketProtocolHeader(protocol, null, out var acceptProtocol);
+            Assert.That(acceptProtocol, Is.EqualTo(string.Empty));
         }
     }
 }

@@ -3,6 +3,7 @@
 
 using Jung.SimpleWebSocket.Exceptions;
 using System.Collections.Specialized;
+using System.Net.Http.Headers;
 
 namespace Jung.SimpleWebSocket.Models;
 
@@ -16,10 +17,30 @@ namespace Jung.SimpleWebSocket.Models;
 /// <param name="content">The content of the web request.</param>
 internal class WebContext(string? content = null)
 {
+
+    /// <summary>
+    /// The content of the web request.
+    /// </summary>
     private readonly string _content = content ?? string.Empty;
+
+    /// <summary>
+    /// The headers of the web request.
+    /// </summary>
     private NameValueCollection? _headers;
+
+    /// <summary>
+    /// The host name of the web request.
+    /// </summary>
     private string? _hostName;
+
+    /// <summary>
+    /// The port of the web request.
+    /// </summary>
     private int _port;
+
+    /// <summary>
+    /// The request path of the web request.
+    /// </summary>
     private string? _requestPath = null;
 
     /// <summary>
@@ -133,8 +154,11 @@ internal class WebContext(string? content = null)
             int separatorIndex = line.IndexOf(':');
             if (separatorIndex > 0)
             {
+                // we simply add the header name and value to the collection
+                // if a value is comma-separated, we handle it when it is accessed
                 string headerName = line[..separatorIndex].Trim();
-                line[(separatorIndex + 1)..].Split(',').ToList().ForEach(x => headers.Add(headerName, x.Trim()));
+                string headerValue = line[(separatorIndex + 1)..].Trim();
+                headers.Add(headerName, headerValue);
             }
         }
         return headers;
@@ -166,7 +190,7 @@ internal class WebContext(string? content = null)
     internal bool ContainsHeader(string name, string value)
     {
         string? headerValue = Headers[name];
-        return headerValue != null && headerValue.Contains(value);
+        return headerValue != null && headerValue.Contains(value, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -184,7 +208,7 @@ internal class WebContext(string? content = null)
                 return false;
             }
 
-            var connectionValues = Headers.GetValues("Connection");
+            var connectionValues = GetAllHeaderValues("Connection");
             foreach (var connectionValue in connectionValues!)
             {
                 if (string.Compare(connectionValue, "Upgrade", StringComparison.OrdinalIgnoreCase) == 0)
@@ -193,9 +217,10 @@ internal class WebContext(string? content = null)
                 }
             }
 
-            var upgradeValues = Headers.GetValues("Upgrade");
-            foreach (var upgradeValue in upgradeValues!)
+            var upgradeValues = GetAllHeaderValues("Upgrade");
+            foreach (var upgradeValue in upgradeValues)
             {
+
                 if (string.Compare(upgradeValue, "websocket", StringComparison.OrdinalIgnoreCase) == 0)
                 {
                     return true;
@@ -204,6 +229,49 @@ internal class WebContext(string? content = null)
 
             return false;
         }
+    }
+
+    /// <summary>
+    /// Gets all values of the specified header. 
+    /// </summary>
+    /// <remarks>
+    /// If the header value is comma-separated, it is split into separate values.
+    /// </remarks>
+    /// <param name="headerName">The name of the header.</param>
+    /// <returns>All values of the specified header.</returns>
+    internal IEnumerable<string> GetAllHeaderValues(string headerName)
+    {
+        var values = Headers.GetValues(headerName);
+        if (values == null)
+        {
+            yield break;
+        }
+        foreach (var value in values)
+        {
+            foreach (var subValue in value.Split(','))
+            {
+                yield return subValue.Trim();
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Gets the concatenated headers of the web request.
+    /// </summary>
+    /// <remarks>
+    /// Headers are concatenated with a comma and a space.
+    /// </remarks>
+    /// <param name="headerName">The name of the header.</param>
+    /// <returns>A concatenated string of the header values if header exists; otherwise, <c>null</c>.</returns>
+    internal string? GetConcatenatedHeaders(string headerName)
+    {
+        var values = Headers.GetValues(headerName);
+        if (values == null)
+        {
+            return null;
+        }
+        return string.Join(", ", values);
     }
 
     /// <summary>

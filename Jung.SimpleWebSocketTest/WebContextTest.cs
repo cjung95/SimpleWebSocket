@@ -127,10 +127,15 @@ namespace Jung.SimpleWebSocketTest
             var context = new WebContext(content);
 
             // Act
-            var result = context.ContainsHeader("Custom-Header", "value1");
+            var containsValue1 = context.ContainsHeader("Custom-Header", "value1");
+            var containsValue2 = context.ContainsHeader("Custom-Header", "value2");
 
             // Assert
-            Assert.That(result, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(containsValue1, Is.True);
+                Assert.That(containsValue2, Is.True);
+            });
         }
 
         [Test]
@@ -197,6 +202,76 @@ namespace Jung.SimpleWebSocketTest
 
             // Act & Assert
             Assert.Throws<WebSocketUpgradeException>(() => { var _ = context.RequestLine; });
+        }
+
+        [Test]
+        public void GetAllHeaderValues_ShouldHandleOneHeaderValueCorrectly()
+        {
+            // Arrange
+            var content = "GET /chat HTTP/1.1\r\n" +
+                          "Host: server.example.com\r\n" +
+                          "Custom-Header: value1\r\n";
+            var context = new WebContext(content);
+            // Act
+            var result = context.GetAllHeaderValues("Custom-Header");
+            // Assert
+            Assert.That(result, Is.EquivalentTo(new[] { "value1" }));
+        }
+
+        [Test]
+        public void GetAllHeaderValues_ShouldHandleMultipleHeaderValuesCorrectly()
+        {
+            // Arrange
+            var content = "GET /chat HTTP/1.1\r\n" +
+                          "Host: server.example.com\r\n" +
+                          "Custom-Header: value1, value2\r\n" +
+                          "Custom-Header: value3, value4\r\n";
+            var context = new WebContext(content);
+            // Act
+            var result = context.GetAllHeaderValues("Custom-Header");
+            // Assert
+            Assert.That(result, Is.EquivalentTo(new[] { "value1", "value2", "value3", "value4" }));
+        }
+
+
+        [Test]
+        public void GetAllHeaderValues_ShouldReturnEmptyCollectionIfHeaderDoesNotExist()
+        {
+            // Arrange
+            var content = "GET /chat HTTP/1.1\r\n";
+
+            var context = new WebContext(content);
+            // Act
+            var result = context.GetAllHeaderValues("Custom-Header");
+            // Assert
+            Assert.That(result, Is.Empty);
+        }
+
+        [Test]
+        public void GetConcatenatedHeaders_ShouldReturnCorrectValue()
+        {
+            // Arrange
+            var content = "GET /chat HTTP/1.1\r\n" +
+                          "Host: server.example.com\r\n" +
+                          "Custom-Header: value1, value2\r\n" +
+                          "Custom-Header: value3, value4\r\n";
+            var context = new WebContext(content);
+            // Act
+            var result = context.GetConcatenatedHeaders("Custom-Header");
+            // Assert
+            Assert.That(result, Is.EqualTo("value1, value2, value3, value4"));
+        }
+
+        [Test]
+        public void GetConcatenatedHeaders_ShouldReturnNullIfHeaderDoesNotExist()
+        {
+            // Arrange
+            var content = "GET /chat HTTP/1.1\r\n";
+            var context = new WebContext(content);
+            // Act
+            var result = context.GetConcatenatedHeaders("Custom-Header");
+            // Assert
+            Assert.That(result, Is.Null);
         }
     }
 }

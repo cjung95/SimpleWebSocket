@@ -72,14 +72,14 @@ internal partial class WebSocketUpgradeHandler
         {
             var response = new WebContext();
             ValidateWebSocketHeaders(request);
-            var protocol = request.Headers["Sec-WebSocket-Protocol"];
+            var protocol = request.GetConcatenatedHeaders("Sec-WebSocket-Protocol");
             if (ProcessWebSocketProtocolHeader(protocol, subProtocol, out var acceptProtocol))
             {
                 response.Headers.Add("Sec-WebSocket-Protocol", acceptProtocol);
             }
             var secWebSocketKey = request.Headers["Sec-WebSocket-Key"];
             var secWebSocketAcceptString = ComputeWebSocketAccept(secWebSocketKey!);
-            response.Headers.Add("Connection", "Upgrade");
+            response.Headers.Add("Connection", "upgrade");
             response.Headers.Add("Upgrade", "websocket");
             response.Headers.Add("Sec-WebSocket-Accept", secWebSocketAcceptString);
             await SendWebSocketResponseHeaders(response, cancellationToken);
@@ -165,7 +165,7 @@ internal partial class WebSocketUpgradeHandler
             if (subProtocol != null)
             {
                 // the server specified a protocol
-                throw new WebSocketUpgradeException($"The WebSocket _client did not request any protocols, but server attempted to accept '{subProtocol}' protocol(s).");
+                throw new WebSocketUpgradeException($"The WebSocket client did not request any protocols, but server attempted to accept '{subProtocol}' protocol(s).");
             }
             // the server should not send the protocol header
             return false;
@@ -196,7 +196,7 @@ internal partial class WebSocketUpgradeHandler
 
         ValidateRequestPath(requestContext.RequestPath);
         requestContext.Headers.Add("Upgrade", "websocket");
-        requestContext.Headers.Add("Connection", "Upgrade");
+        requestContext.Headers.Add("Connection", "upgrade");
         requestContext.Headers.Add("Sec-WebSocket-Key", secWebSocketKey);
         requestContext.Headers.Add("Sec-WebSocket-Version", _supportedVersion);
 
