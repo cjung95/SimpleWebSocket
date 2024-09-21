@@ -6,6 +6,7 @@ using Jung.SimpleWebSocket.Delegates;
 using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
+using Jung.SimpleWebSocket.Utility;
 using Jung.SimpleWebSocket.Wrappers;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
@@ -33,6 +34,9 @@ namespace Jung.SimpleWebSocket
         public event ClientMessageReceivedEventHandler? MessageReceived;
         /// <inheritdoc/>
         public event ClientBinaryMessageReceivedEventHandler? BinaryMessageReceived;
+
+        /// <inheritdoc/>
+        public event AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? ClientUpgradeRequestReceivedAsync;
 
         /// <summary>
         /// A dictionary of active clients.
@@ -227,7 +231,18 @@ namespace Jung.SimpleWebSocket
                 using var stream = client.ClientConnection.GetStream();
                 var socketWrapper = new WebSocketUpgradeHandler(stream);
                 var request = await socketWrapper.AwaitContextAsync(cancellationToken);
-                await socketWrapper.AcceptWebSocketAsync(request, cancellationToken);
+
+                // raise async client upgrade request received event
+                var eventArgs = new ClientUpgradeRequestReceivedArgs(client, request, _logger);
+                await AsyncEventRaiser.RaiseAsync(ClientUpgradeRequestReceivedAsync, this, eventArgs, cancellationToken);
+                if (!eventArgs.Handle)
+                {
+                    _logger?.LogDebug("Client upgrade request rejected by ClientUpgradeRequestReceivedAsync event.");
+                    // send rejection response
+                    return;
+                }
+
+                await socketWrapper.AcceptWebSocketAsync(request, eventArgs.WebContext, cancellationToken);
                 client.UpdateWebSocket(socketWrapper.CreateWebSocket(isServer: true));
 
                 _ = Task.Run(() => ClientConnected?.Invoke(this, new ClientConnectedArgs(client.Id)), cancellationToken);

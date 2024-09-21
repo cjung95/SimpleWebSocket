@@ -3,7 +3,8 @@
 
 using Jung.SimpleWebSocket.Exceptions;
 using System.Collections.Specialized;
-using System.Net.Http.Headers;
+using System.Net;
+using System.Text.RegularExpressions;
 
 namespace Jung.SimpleWebSocket.Models;
 
@@ -15,7 +16,7 @@ namespace Jung.SimpleWebSocket.Models;
 /// Initializes a new instance of the <see cref="WebContext"/> class.
 /// </remarks>
 /// <param name="content">The content of the web request.</param>
-internal class WebContext(string? content = null)
+public partial class WebContext(string? content = null)
 {
 
     /// <summary>
@@ -42,6 +43,17 @@ internal class WebContext(string? content = null)
     /// The request path of the web request.
     /// </summary>
     private string? _requestPath = null;
+
+    /// <summary>
+    /// The status code of the context.
+    /// </summary>
+    private HttpStatusCode? _statusCode;
+
+
+    // A Regular Expression to split a string by uppercase letters.
+    [GeneratedRegex(@"(?<!^)(?=[A-Z])")]
+    private static partial Regex SplitByUppercaseRegex();
+    private static readonly Regex _splitByUppercaseRegex = SplitByUppercaseRegex();
 
     /// <summary>
     /// Gets the headers of the web request.
@@ -141,6 +153,33 @@ internal class WebContext(string? content = null)
     }
 
     /// <summary>
+    /// Gets or sets the status code of the context
+    /// </summary>
+    public HttpStatusCode StatusCode
+    {
+        get
+        {
+            if (_statusCode == null)
+            {
+                var parts = StatusLine.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2)
+                {
+                    _statusCode = (HttpStatusCode)Enum.Parse(typeof(HttpStatusCode), parts[1]);
+                }
+                else
+                {
+                    throw new WebSocketUpgradeException("Status code is missing");
+                }
+            }
+            return _statusCode.Value;
+        }
+        set
+        {
+            _statusCode = value;
+        }
+    }
+
+    /// <summary>
     /// Parses the headers of the web request.
     /// </summary>
     /// <returns>The parsed headers.</returns>
@@ -185,12 +224,12 @@ internal class WebContext(string? content = null)
     /// Checks if the web request contains a specific header with a specific value.
     /// </summary>
     /// <param name="name">The name of the header.</param>
-    /// <param name="value">The value of the header.</param>
+    /// <param name="value">The value of the header. If <c>null</c>, only the header name is checked.</param>
     /// <returns><c>true</c> if the web request contains the specified header with the specified value; otherwise, <c>false</c>.</returns>
-    internal bool ContainsHeader(string name, string value)
+    internal bool ContainsHeader(string name, string? value = null)
     {
         string? headerValue = Headers[name];
-        return headerValue != null && headerValue.Contains(value, StringComparison.OrdinalIgnoreCase);
+        return headerValue != null && (value == null || headerValue.Contains(value, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -298,6 +337,28 @@ internal class WebContext(string? content = null)
             if (lines.Length == 0) throw new WebSocketUpgradeException("Request line is missing");
             return lines[0];
         }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the Content is empty.
+    /// </summary>
+    public bool IsEmpty => string.IsNullOrWhiteSpace(_content);
+
+    /// <summary>
+    /// Gets the status description of the web request.
+    /// </summary>
+    public string StatusDescription => GetStatusDescription(StatusCode);
+
+
+    /// <summary>
+    /// Gets the status description for the given status code.
+    /// </summary>
+    /// <param name="statusCode">The status code.</param>
+    /// <returns>A string containing the status description.</returns>
+    public static string GetStatusDescription(HttpStatusCode statusCode)
+    {
+        var enumName = Enum.GetName(statusCode) ?? throw new WebSocketUpgradeException("Status code is not a valid HttpStatusCode");
+        return string.Join(" ", _splitByUppercaseRegex.Split(enumName));
     }
 
     /// <summary>

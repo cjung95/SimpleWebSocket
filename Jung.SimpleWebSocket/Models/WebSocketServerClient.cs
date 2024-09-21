@@ -17,6 +17,14 @@ namespace Jung.SimpleWebSocket.Models
         public string Id { get; private set; } = Guid.NewGuid().ToString();
 
         /// <summary>
+        /// Gets the properties of the WebSocket client.
+        /// </summary>
+        /// <remarks>
+        /// The properties can be used to store additional information about the client.
+        /// </remarks>
+        public Dictionary<string, object> Properties { get; } = [];
+
+        /// <summary>
         /// Gets the connection of the WebSocket client.
         /// </summary>
         internal ITcpClient ClientConnection { get; private set; }

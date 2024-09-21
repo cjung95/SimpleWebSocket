@@ -9,6 +9,7 @@ using Jung.SimpleWebSocket.Contracts;
 using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Helpers;
 using Jung.SimpleWebSocket.Models;
+using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
@@ -63,14 +64,23 @@ internal partial class WebSocketUpgradeHandler
 
     public async Task AcceptWebSocketAsync(WebContext request, CancellationToken cancellationToken)
     {
-        await AcceptWebSocketAsync(request, null, cancellationToken);
+        await AcceptWebSocketAsync(request, new WebContext(), null, cancellationToken);
+    }
+
+    public async Task AcceptWebSocketAsync(WebContext request, WebContext response, CancellationToken cancellationToken)
+    {
+        await AcceptWebSocketAsync(request, response, null, cancellationToken);
     }
 
     public async Task AcceptWebSocketAsync(WebContext request, string? subProtocol, CancellationToken cancellationToken)
     {
+        await AcceptWebSocketAsync(request, new WebContext(), subProtocol, cancellationToken);
+    }
+
+    public async Task AcceptWebSocketAsync(WebContext request, WebContext response, string? subProtocol, CancellationToken cancellationToken)
+    {
         try
         {
-            var response = new WebContext();
             ValidateWebSocketHeaders(request);
             var protocol = request.GetConcatenatedHeaders("Sec-WebSocket-Protocol");
             if (ProcessWebSocketProtocolHeader(protocol, subProtocol, out var acceptProtocol))
@@ -82,6 +92,7 @@ internal partial class WebSocketUpgradeHandler
             response.Headers.Add("Connection", "upgrade");
             response.Headers.Add("Upgrade", "websocket");
             response.Headers.Add("Sec-WebSocket-Accept", secWebSocketAcceptString);
+            response.StatusCode = HttpStatusCode.SwitchingProtocols;
             await SendWebSocketResponseHeaders(response, cancellationToken);
             _acceptedProtocol = subProtocol;
         }
@@ -98,7 +109,7 @@ internal partial class WebSocketUpgradeHandler
     private async Task SendWebSocketResponseHeaders(WebContext context, CancellationToken cancellationToken)
     {
         var sb = new StringBuilder(
-            $"HTTP/1.1 101 Switching Protocols\r\n");
+            $"HTTP/1.1 {(int)context.StatusCode} {context.StatusDescription}\r\n");
         AddHeaders(context, sb);
         FinishMessage(sb);
 
@@ -219,6 +230,11 @@ internal partial class WebSocketUpgradeHandler
 
     internal static void ValidateUpgradeResponse(WebContext response, WebContext requestContext)
     {
+        if (response.IsEmpty)
+        {
+            throw new WebSocketUpgradeException("Empty response received");
+        }
+
         // Check if the response contains '101 Switching Protocols'
         if (!response.StatusLine.Contains("101 Switching Protocols"))
         {

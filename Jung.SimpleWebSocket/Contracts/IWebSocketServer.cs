@@ -4,6 +4,7 @@
 using Jung.SimpleWebSocket.Delegates;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
+using Jung.SimpleWebSocket.Utility;
 using System.Net;
 
 namespace Jung.SimpleWebSocket.Contracts;
@@ -57,6 +58,11 @@ public interface IWebSocketServer : IDisposable
     /// Event that is raised when a binary message is received from a client.
     /// </summary>
     event ClientBinaryMessageReceivedEventHandler? BinaryMessageReceived;
+
+    /// <summary>
+    /// Async Event that is raised when a client upgrade request is received.
+    /// </summary>
+    event AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? ClientUpgradeRequestReceivedAsync;
 
     /// <summary>
     /// Gets a client by its id.

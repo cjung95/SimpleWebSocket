@@ -17,7 +17,7 @@ namespace Jung.SimpleWebSocketTest
     [TestFixture]
     public class SimpleWebSocketTest
     {
-        private List<string> _logMessages = [];
+        private readonly List<string> _logMessages = [];
         private Mock<ILogger<SimpleWebSocketServer>> _serverLogger;
         private Mock<ILogger<SimpleWebSocketServer>> _clientLogger;
 
@@ -60,7 +60,7 @@ namespace Jung.SimpleWebSocketTest
                 var formatter = invocation.Arguments[4];
 
                 var invokeMethod = formatter.GetType().GetMethod("Invoke");
-                var logMessage = invokeMethod!.Invoke(formatter, new[] { state, exception });
+                var logMessage = invokeMethod!.Invoke(formatter, [state, exception]);
                 _logMessages.Add($"{loggerName}({logLevel}): {logMessage}");
             }));
         }
@@ -106,6 +106,27 @@ namespace Jung.SimpleWebSocketTest
                 messageResetEvent.Set();
             };
 
+            server.ClientUpgradeRequestReceivedAsync += async (sender, args, cancellationToken) =>
+            {
+                var IpAddress = (args.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString();
+                if (IpAddress == null)
+                {
+                    args.Handle = false;
+                    return;
+                }
+
+                // Check the IpAddress against the database
+                var isWhitelistedEndPoint = await DbContext_IpAddresses_Contains(IpAddress, cancellationToken);
+                if (!isWhitelistedEndPoint)
+                {
+                    args.ResponseContext.StatusCode = HttpStatusCode.Forbidden;
+                    // not yet implemented
+                    // args.ResponseContext.Body = "";
+                    args.Handle = false;
+                }
+                args.Client.Properties["test"] = "test";
+            };
+
             // Act
             server.Start();
             await client.ConnectAsync();
@@ -127,6 +148,18 @@ namespace Jung.SimpleWebSocketTest
                 Assert.That(receivedMessage, Is.EqualTo(Message));
                 Assert.That(receivedClosingDescription, Is.EqualTo(ClosingStatusDescription));
             });
+        }
+
+        /// <summary>
+        /// Fake Async method to simulate a database call to check if the IP address is in the database.
+        /// </summary>
+        /// <param name="ipAddress">The IP address to check.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains a value indicating whether the IP address is in the database.</returns>
+        private static async Task<bool> DbContext_IpAddresses_Contains(string ipAddress, CancellationToken cancellationToken)
+        {
+            await Task.Delay(100, cancellationToken);
+            return ipAddress == IPAddress.Loopback.ToString();
         }
 
         [Test]
