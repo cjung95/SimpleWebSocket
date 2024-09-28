@@ -60,6 +60,11 @@ public interface IWebSocketServer : IDisposable
     event ClientBinaryMessageReceivedEventHandler? BinaryMessageReceived;
 
     /// <summary>
+    /// Occurs when an passive user expired.
+    /// </summary>
+    event PassiveUserExpiredEventHandler? PassiveUserExpiredEvent;
+
+    /// <summary>
     /// Async Event that is raised when a client upgrade request is received.
     /// </summary>
     event AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? ClientUpgradeRequestReceivedAsync;

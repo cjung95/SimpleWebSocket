@@ -34,6 +34,8 @@ namespace Jung.SimpleWebSocket
         public event ClientMessageReceivedEventHandler? MessageReceived;
         /// <inheritdoc/>
         public event ClientBinaryMessageReceivedEventHandler? BinaryMessageReceived;
+        /// <inheritdoc/>
+        public event PassiveUserExpiredEventHandler? PassiveUserExpiredEvent;
 
         /// <inheritdoc/>
         public event AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? ClientUpgradeRequestReceivedAsync;
@@ -43,16 +45,19 @@ namespace Jung.SimpleWebSocket
         /// </summary>
         private ConcurrentDictionary<string, WebSocketServerClient> ActiveClients { get; } = [];
 
+        /// <summary>
+        /// A dictionary of passive clients.
+        /// </summary>
+        /// <remarks>
+        /// The passive clients get removed after a certain time of inactivity.
+        /// </remarks>
+        private ExpiringDictionary<string, WebSocketServerClient> PassiveClients { get; }
+
         /// <inheritdoc />
         public string[] ClientIds => [.. ActiveClients.Keys];
 
         /// <inheritdoc />
         public int ClientCount => ActiveClients.Count;
-
-        /// <summary>
-        /// Future: Handle passive (disconnected) clients, delete them after a period of time, configurate this behavior in the WebSocketServerOptions
-        /// </summary>
-        private ConcurrentDictionary<string, WebSocketServerClient> PassiveClients { get; } = [];
 
         /// <inheritdoc/>
         public bool IsListening => _server?.IsListening ?? false;
@@ -86,29 +91,27 @@ namespace Jung.SimpleWebSocket
         /// Initializes a new instance of the <see cref="SimpleWebSocketServer"/> class that listens
         /// for incoming connection attempts on the specified local IP address and port number.
         /// </summary>
-        /// <param name="localIpAddress">A local ip address</param>
-        /// <param name="port">A port on which to listen for incoming connection attempts</param>
+        /// <param name="options">The options for the server</param>
         /// <param name="logger">A logger to write internal log messages</param>
-        public SimpleWebSocketServer(IPAddress localIpAddress, int port, ILogger? logger = null)
+        public SimpleWebSocketServer(SimpleWebSocketServerOptions options, ILogger? logger = null)
         {
-            LocalIpAddress = localIpAddress;
-            Port = port;
+            LocalIpAddress = options.LocalIpAddress;
+            Port = options.Port;
             _logger = logger;
+            PassiveClients = new(options.PassiveClientLifetime, _logger);
+            PassiveClients.ItemExpired += PassiveClients_ItemExpired;
         }
 
         /// <summary>
         /// Constructor for dependency injection (used in tests)
         /// </summary>
-        /// <param name="localIpAddress">A local ip address</param>
-        /// <param name="port">A port on which to listen for incoming connection attempts</param>
+        /// <param name="options">The options for the server</param>
         /// <param name="tcpListener">A wrapped tcp listener</param>
         /// <param name="logger">>A logger to write internal log messages</param>
-        internal SimpleWebSocketServer(IPAddress localIpAddress, int port, ITcpListener tcpListener, ILogger? logger = null)
+        internal SimpleWebSocketServer(SimpleWebSocketServerOptions options, ITcpListener tcpListener, ILogger? logger = null)
+            : this(options, logger)
         {
-            LocalIpAddress = localIpAddress;
-            Port = port;
             _server = tcpListener;
-            _logger = logger;
         }
 
         /// <inheritdoc/>
@@ -224,8 +227,8 @@ namespace Jung.SimpleWebSocket
             {
                 // Upgrade the connection to a WebSocket
                 using var stream = client.ClientConnection!.GetStream();
-                var socketWrapper = new WebSocketUpgradeHandler(stream);
-                var request = await socketWrapper.AwaitContextAsync(cancellationToken);
+                var upgradeHandler = new WebSocketUpgradeHandler(stream);
+                var request = await upgradeHandler.AwaitContextAsync(cancellationToken);
 
                 // Check if the request contains a user id
                 if (request.ContainsUserId)
@@ -243,7 +246,7 @@ namespace Jung.SimpleWebSocket
                         var passiveClient = PassiveClients[request.UserId];
                         passiveClient.UpdateClient(client.ClientConnection);
                         client = passiveClient;
-                        PassiveClients.TryRemove(request.UserId, out _);
+                        PassiveClients.Remove(request.UserId);
                     }
                     else
                     {
@@ -252,7 +255,7 @@ namespace Jung.SimpleWebSocket
                         {
                             _logger?.LogDebug("Active client found for user id {userId} - rejecting connection.", request.UserId);
                             // Reject the connection
-                            await socketWrapper.RejectWebSocketAsync(cancellationToken);
+                            await upgradeHandler.RejectWebSocketAsync(cancellationToken);
                             return;
                         }
                         else
@@ -263,30 +266,32 @@ namespace Jung.SimpleWebSocket
                     }
                 }
 
-                 // raise async client upgrade request received event
+                // raise async client upgrade request received event
                 var eventArgs = new ClientUpgradeRequestReceivedArgs(client, request, _logger);
                 await AsyncEventRaiser.RaiseAsync(ClientUpgradeRequestReceivedAsync, this, eventArgs, cancellationToken);
-                if (!eventArgs.Handle)
+                if (eventArgs.Handle)
                 {
+                    // The client is accepted
+                    await upgradeHandler.AcceptWebSocketAsync(request, eventArgs.ResponseContext, client.Id, null, cancellationToken);
+
+                    // Update the client with the new WebSocket
+                    client.UseWebSocket(upgradeHandler.CreateWebSocket(isServer: true));
+
+                    clientAdded = ActiveClients.TryAdd(client.Id, client);
+                    if (clientAdded)
+                    {
+                        _ = Task.Run(() => ClientConnected?.Invoke(this, new ClientConnectedArgs(client.Id)), cancellationToken);
+                        // Start listening for messages
+                        _logger?.LogDebug("Connection upgraded, now listening on client {clientId}", client.Id);
+                        await ProcessWebSocketMessagesAsync(client, cancellationToken);
+                    }
+                }
+                else
+                {
+                    // The client is rejected
                     _logger?.LogDebug("Client upgrade request rejected by ClientUpgradeRequestReceivedAsync event.");
-                    // send rejection response
-                    return;
+                    await upgradeHandler.RejectWebSocketAsync(cancellationToken);
                 }
-
-                await socketWrapper.AcceptWebSocketAsync(request, client.Id, cancellationToken);
-
-                // Update the client with the new WebSocket
-                client.UseWebSocket(socketWrapper.CreateWebSocket(isServer: true));
-
-                clientAdded = ActiveClients.TryAdd(client.Id, client);
-                if (clientAdded)
-                {
-                    _ = Task.Run(() => ClientConnected?.Invoke(this, new ClientConnectedArgs(client.Id)), cancellationToken);
-                    // Start listening for messages
-                    _logger?.LogDebug("Connection upgraded, now listening on client {clientId}", client.Id);
-                    await ProcessWebSocketMessagesAsync(client, cancellationToken);
-                }
-
             }
             catch (OperationCanceledException)
             {
@@ -311,7 +316,9 @@ namespace Jung.SimpleWebSocket
         {
             ActiveClients.TryRemove(client.Id, out _);
             client.Dispose();
-            PassiveClients.TryAdd(client.Id, client);
+
+            _logger?.LogDebug("Client {clientId} is now a passive user.", client.Id);
+            PassiveClients.Add(client.Id, client);
         }
 
         /// <summary>
@@ -360,6 +367,20 @@ namespace Jung.SimpleWebSocket
                     break;
                 }
             }
+        }
+
+        /// <summary>
+        /// Handles the event when a passive user expired.
+        /// </summary>
+        /// <param name="sender">The sender of the event (<see cref="PassiveClients"/>)</param>
+        /// <param name="e">The arguments of the event</param>
+        private void PassiveClients_ItemExpired(object? sender, ItemExpiredArgs<WebSocketServerClient> e)
+        {
+            _logger?.LogDebug("Passive client expired: {clientId}", e.Item.Id);
+
+            // Raise the event asynchronously
+            // We don't want to block the cleanup process
+            Task.Run(() => PassiveUserExpiredEvent?.Invoke(this, new PassiveUserExpiredArgs(e.Item.Id)));
         }
 
         /// <inheritdoc/>

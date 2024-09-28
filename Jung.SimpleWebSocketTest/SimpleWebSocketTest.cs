@@ -2,6 +2,7 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket;
+using Jung.SimpleWebSocket.Models;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -70,7 +71,15 @@ namespace Jung.SimpleWebSocketTest
         public async Task TestClientServerConnection_ShouldSendAndReceiveHelloWorld()
         {
             // Arrange
-            using var server = new SimpleWebSocketServer(IPAddress.Any, 8010, _serverLogger.Object);
+            var serverOptions = new SimpleWebSocketServerOptions
+            {
+                LocalIpAddress = IPAddress.Any,
+                Port = 8010,
+                ActivateUserHandling = true,
+                PassiveClientLifetime = TimeSpan.FromSeconds(5)
+            };
+
+            using var server = new SimpleWebSocketServer(serverOptions, _serverLogger.Object);
             using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", logger: _clientLogger.Object);
 
 
@@ -169,6 +178,47 @@ namespace Jung.SimpleWebSocketTest
             });
         }
 
+        [Test]
+        [Platform("Windows7,Windows8,Windows8.1,Windows10", Reason = "This test establishes a TCP client-server connection using SimpleWebSocket, which relies on specific networking features and behaviors that are only available and consistent on Windows platforms. Running this test on non-Windows platforms could lead to inconsistent results or failures due to differences in networking stack implementations.")]
+        public async Task TestClientServerConnection_ShouldRemoveClientFromPassiveClients()
+        {
+            // Arrange
+            string userId = Guid.NewGuid().ToString();
+            var serverOptions = new SimpleWebSocketServerOptions
+            {
+                LocalIpAddress = IPAddress.Any,
+                Port = 8010,
+                ActivateUserHandling = true,
+                PassiveClientLifetime = TimeSpan.FromSeconds(1)
+            };
+
+            using var server = new SimpleWebSocketServer(serverOptions, _serverLogger.Object);
+            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", userId, _clientLogger.Object);
+
+            var expiredClientId = string.Empty;
+            var expiredClientResetEvent = new ManualResetEvent(false);
+
+            server.PassiveUserExpiredEvent += (sender, args) =>
+            {
+                expiredClientId = args.ClientId;
+                expiredClientResetEvent.Set();
+            };
+
+            // Act
+            server.Start();
+            await client.ConnectAsync();
+            await Task.Delay(100);
+            await client.DisconnectAsync();
+
+            WaitForManualResetEventOrThrow(expiredClientResetEvent, 2000);
+
+            await server.ShutdownServer(CancellationToken.None);
+            _logMessages.ForEach(m => Trace.WriteLine(m));
+
+            // Assert
+            Assert.That(expiredClientId, Is.EqualTo(userId));
+        }
+
         /// <summary>
         /// Fake Async method to simulate a database call to check if the IP address is in the database.
         /// </summary>
@@ -186,7 +236,15 @@ namespace Jung.SimpleWebSocketTest
         public async Task TestClientServerConnection_ShouldSendAndReceiveHelloWorld2()
         {
             // Arrange
-            using var server = new SimpleWebSocketServer(IPAddress.Any, 8010, _serverLogger.Object);
+            var serverOptions = new SimpleWebSocketServerOptions
+            {
+                LocalIpAddress = IPAddress.Any,
+                Port = 8010,
+                ActivateUserHandling = true,
+                PassiveClientLifetime = TimeSpan.FromSeconds(1)
+            };
+
+            using var server = new SimpleWebSocketServer(serverOptions, _serverLogger.Object);
             using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", logger: _clientLogger.Object);
 
 
@@ -249,7 +307,15 @@ namespace Jung.SimpleWebSocketTest
         public async Task TestMultipleClientServerConnection_ShouldSendAndReceiveHelloWorld()
         {
             // Arrange
-            using var server = new SimpleWebSocketServer(IPAddress.Any, 8010);
+            var serverOptions = new SimpleWebSocketServerOptions
+            {
+                LocalIpAddress = IPAddress.Any,
+                Port = 8010,
+                ActivateUserHandling = true,
+                PassiveClientLifetime = TimeSpan.FromSeconds(1)
+            };
+
+            using var server = new SimpleWebSocketServer(serverOptions);
             List<SimpleWebSocketClient> clients = [];
             var message = "Hello World";
             const int clientsCount = 200;
