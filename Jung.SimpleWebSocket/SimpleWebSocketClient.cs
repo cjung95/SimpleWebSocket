@@ -22,6 +22,7 @@ namespace Jung.SimpleWebSocket
     /// <param name="hostName">The host name to connect to</param>
     /// <param name="port">The port to connect to</param>
     /// <param name="requestPath">The web socket request path</param>
+    /// <param name="userId">The user id of the client. This is normally created by the server and sent back to the client</param>
     /// <param name="logger">A logger to write internal log messages</param>
     public class SimpleWebSocketClient(string hostName, int port, string requestPath, string? userId = null, ILogger? logger = null) : IWebSocketClient, IDisposable
     {

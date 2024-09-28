@@ -61,7 +61,7 @@ namespace Jung.SimpleWebSocketTest
 
                 var invokeMethod = formatter.GetType().GetMethod("Invoke");
                 var logMessage = invokeMethod!.Invoke(formatter, [state, exception]);
-                _logMessages.Add($"{loggerName}({logLevel}): {logMessage}");
+                _logMessages.Add($"[{DateTime.Now:HH:mm:ss:fff}] {loggerName} ({logLevel}): {logMessage}");
             }));
         }
 
@@ -109,6 +109,7 @@ namespace Jung.SimpleWebSocketTest
 
             server.ClientUpgradeRequestReceivedAsync += async (sender, args, cancellationToken) =>
             {
+                // Get the IP address of the client
                 var IpAddress = (args.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString();
                 if (IpAddress == null)
                 {
@@ -121,8 +122,7 @@ namespace Jung.SimpleWebSocketTest
                 if (!isWhitelistedEndPoint)
                 {
                     args.ResponseContext.StatusCode = HttpStatusCode.Forbidden;
-                    // not yet implemented
-                    // args.ResponseContext.Body = "";
+                    args.ResponseContext.BodyContent = "Connection only possible via local network.";
                     args.Handle = false;
                 }
                 args.Client.Properties["test"] = "test";
@@ -131,21 +131,22 @@ namespace Jung.SimpleWebSocketTest
             // Act
             server.Start();
             await client.ConnectAsync();
-
             WaitForManualResetEventOrThrow(connectResetEvent);
 
             await client.SendMessageAsync(Message);
             WaitForManualResetEventOrThrow(messageResetEvent);
 
             await client.DisconnectAsync(ClosingStatusDescription);
-            WaitForManualResetEventOrThrow(disconnectResetEvent, 100000);
+            WaitForManualResetEventOrThrow(disconnectResetEvent);
 
+            // test if the server accepts the client again
             var client2 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLogger.Object);
             await client2.ConnectAsync();
 
-            await Task.Delay(1000);
+            await Task.Delay(100);
             try
             {
+                // test if two clients with the same user id can connect
                 var client3 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLogger.Object);
                 await client3.ConnectAsync();
             }
@@ -153,11 +154,8 @@ namespace Jung.SimpleWebSocketTest
             {
                 exceptionMessage = exception.InnerException!.Message;
             }
-           
 
             await client2.SendMessageAsync("Hello World");
-            await Task.Delay(1000);
-
 
             await server.ShutdownServer(CancellationToken.None);
             _logMessages.ForEach(m => Trace.WriteLine(m));

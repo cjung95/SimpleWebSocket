@@ -63,17 +63,7 @@ internal partial class WebSocketUpgradeHandler
         return context;
     }
 
-    public async Task AcceptWebSocketAsync(WebContext request, string userId, CancellationToken cancellationToken)
-    {
-        await AcceptWebSocketAsync(request, userId, null, cancellationToken);
-    }
-
-    public async Task AcceptWebSocketAsync(WebContext request, string userId, string? subProtocol, CancellationToken cancellationToken)
-    {
-        await AcceptWebSocketAsync(request, new WebContext(), subProtocol, cancellationToken);
-    }
-
-    public async Task AcceptWebSocketAsync(WebContext request, WebContext response, string? subProtocol, CancellationToken cancellationToken)
+    public async Task AcceptWebSocketAsync(WebContext request, WebContext response, string userId, string? subProtocol, CancellationToken cancellationToken)
     {
         try
         {

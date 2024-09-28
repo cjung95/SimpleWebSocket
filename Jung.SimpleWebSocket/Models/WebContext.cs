@@ -61,7 +61,7 @@ public partial class WebContext(string? content = null)
     private string? _bodyContent = null;
 
     /// <summary>
-    /// Gets the headers of the web request.
+    /// Gets the headers.
     /// </summary>
     public NameValueCollection Headers
     {
@@ -72,6 +72,9 @@ public partial class WebContext(string? content = null)
         }
     }
 
+    /// <summary>
+    /// Gets or Sets the body content.
+    /// </summary>
     public string BodyContent
     {
         get
@@ -374,7 +377,6 @@ public partial class WebContext(string? content = null)
     }
 
     /// <summary>
-<<<<<<< HEAD
     /// Gets a value indicating whether the Content is empty.
     /// </summary>
     public bool IsEmpty => string.IsNullOrWhiteSpace(_content);
@@ -395,7 +397,9 @@ public partial class WebContext(string? content = null)
         var enumName = Enum.GetName(statusCode) ?? throw new WebSocketUpgradeException("Status code is not a valid HttpStatusCode");
         return string.Join(" ", _splitByUppercaseRegex.Split(enumName));
     }
-=======
+
+
+    /// <summary>
     /// Gets the user id of the web request.
     /// </summary>
     public string UserId
@@ -411,7 +415,6 @@ public partial class WebContext(string? content = null)
     /// Gets a value indicating whether the web request contains a user id.
     /// </summary>
     public bool ContainsUserId => Headers["x-user-id"] != null;
->>>>>>> origin/handling-user-id-header
 
     /// <summary>
     /// Gets the content lines of the web request.

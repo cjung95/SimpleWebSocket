@@ -64,7 +64,7 @@ namespace Jung.SimpleWebSocketTest
             _mockNetworkStream.Setup(ns => ns.WriteAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>())).Callback<byte[], CancellationToken>((buffer, ct) => { response = Encoding.UTF8.GetString(buffer); });
 
             // Act
-            await _socketWrapper.AcceptWebSocketAsync(request, Guid.NewGuid().ToString(), cancellationToken);
+            await _socketWrapper.AcceptWebSocketAsync(request,new WebContext(), Guid.NewGuid().ToString(), null,  cancellationToken);
 
             // Assert
             Assert.That(response, Does.Contain("HTTP/1.1 101 Switching Protocols"));
@@ -90,7 +90,7 @@ namespace Jung.SimpleWebSocketTest
             _mockNetworkStream.Setup(ns => ns.WriteAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>())).Callback<byte[], CancellationToken>((buffer, ct) => { response = Encoding.UTF8.GetString(buffer); });
 
             // Act
-            await _socketWrapper.AcceptWebSocketAsync(request, Guid.NewGuid().ToString(), serverSubprotocol, cancellationToken);
+            await _socketWrapper.AcceptWebSocketAsync(request, new WebContext(), Guid.NewGuid().ToString(), serverSubprotocol, cancellationToken);
 
             // Assert
             Assert.Multiple(() =>
