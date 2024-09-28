@@ -71,13 +71,14 @@ namespace Jung.SimpleWebSocketTest
         {
             // Arrange
             using var server = new SimpleWebSocketServer(IPAddress.Any, 8010, _serverLogger.Object);
-            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", _clientLogger.Object);
+            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", logger: _clientLogger.Object);
 
 
             const string Message = "Hello World";
             const string ClosingStatusDescription = "closing status test description";
             string receivedMessage = string.Empty;
             string receivedClosingDescription = string.Empty;
+            string exceptionMessage = string.Empty;
 
             var messageResetEvent = new ManualResetEvent(false);
             var disconnectResetEvent = new ManualResetEvent(false);
@@ -139,6 +140,25 @@ namespace Jung.SimpleWebSocketTest
             await client.DisconnectAsync(ClosingStatusDescription);
             WaitForManualResetEventOrThrow(disconnectResetEvent, 100000);
 
+            var client2 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLogger.Object);
+            await client2.ConnectAsync();
+
+            await Task.Delay(1000);
+            try
+            {
+                var client3 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLogger.Object);
+                await client3.ConnectAsync();
+            }
+            catch (Exception exception)
+            {
+                exceptionMessage = exception.InnerException!.Message;
+            }
+           
+
+            await client2.SendMessageAsync("Hello World");
+            await Task.Delay(1000);
+
+
             await server.ShutdownServer(CancellationToken.None);
             _logMessages.ForEach(m => Trace.WriteLine(m));
 
@@ -147,6 +167,7 @@ namespace Jung.SimpleWebSocketTest
             {
                 Assert.That(receivedMessage, Is.EqualTo(Message));
                 Assert.That(receivedClosingDescription, Is.EqualTo(ClosingStatusDescription));
+                Assert.That(exceptionMessage, Does.Contain("User ID already connected"));
             });
         }
 
@@ -168,7 +189,7 @@ namespace Jung.SimpleWebSocketTest
         {
             // Arrange
             using var server = new SimpleWebSocketServer(IPAddress.Any, 8010, _serverLogger.Object);
-            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", _clientLogger.Object);
+            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", logger: _clientLogger.Object);
 
 
             const string Message = "Hello World";

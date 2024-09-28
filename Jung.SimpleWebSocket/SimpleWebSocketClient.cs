@@ -23,7 +23,7 @@ namespace Jung.SimpleWebSocket
     /// <param name="port">The port to connect to</param>
     /// <param name="requestPath">The web socket request path</param>
     /// <param name="logger">A logger to write internal log messages</param>
-    public class SimpleWebSocketClient(string hostName, int port, string requestPath, ILogger? logger = null) : IWebSocketClient, IDisposable
+    public class SimpleWebSocketClient(string hostName, int port, string requestPath, string? userId = null, ILogger? logger = null) : IWebSocketClient, IDisposable
     {
         /// <inheritdoc/>
         public string HostName { get; } = hostName;
@@ -31,6 +31,9 @@ namespace Jung.SimpleWebSocket
         public int Port { get; } = port;
         /// <inheritdoc/>
         public string RequestPath { get; } = requestPath;
+
+        /// <inheritdoc/>
+        public string? UserId { get; private set; }
 
         /// <inheritdoc/>
         public bool IsConnected => _client?.Connected ?? false;
@@ -150,10 +153,16 @@ namespace Jung.SimpleWebSocket
             _stream = client.GetStream();
             var socketWrapper = new WebSocketUpgradeHandler(_stream);
 
-            var requestContext = WebContext.CreateRequest(HostName, Port, RequestPath);
+            var requestContext = WebContext.CreateRequest(HostName, Port, RequestPath, userId);
             await socketWrapper.SendUpgradeRequestAsync(requestContext, cancellationToken);
             var response = await socketWrapper.AwaitContextAsync(cancellationToken);
             WebSocketUpgradeHandler.ValidateUpgradeResponse(response, requestContext);
+
+            if (response.ContainsUserId)
+            {
+                UserId = response.UserId;
+            }
+
             _webSocket = socketWrapper.CreateWebSocket(isServer: false);
         }
 

@@ -31,6 +31,11 @@ public interface IWebSocketClient : IDisposable
     bool IsConnected { get; }
 
     /// <summary>
+    /// The user id of the client. If not set, the server did not sent a user id at websocket upgrade.
+    /// </summary>
+    string? UserId { get; }
+
+    /// <summary>
     /// Event that is raised when a message is received from a client.
     /// </summary>
     event MessageReceivedEventHandler? MessageReceived;

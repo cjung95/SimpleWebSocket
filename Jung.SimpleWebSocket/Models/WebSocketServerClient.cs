@@ -27,7 +27,7 @@ namespace Jung.SimpleWebSocket.Models
         /// <summary>
         /// Gets the connection of the WebSocket client.
         /// </summary>
-        internal ITcpClient ClientConnection { get; private set; }
+        internal ITcpClient? ClientConnection { get; private set; }
 
         /// <summary>
         /// Gets the timestamp when the WebSocket client was last seen.
@@ -42,7 +42,7 @@ namespace Jung.SimpleWebSocket.Models
         /// <summary>
         /// Gets the remote endpoint of the WebSocket client.
         /// </summary>
-        public EndPoint? RemoteEndPoint => ClientConnection.RemoteEndPoint;
+        public EndPoint? RemoteEndPoint => ClientConnection?.RemoteEndPoint;
 
         /// <summary>
         /// Gets or sets the WebSocket of the client.
@@ -71,6 +71,16 @@ namespace Jung.SimpleWebSocket.Models
         }
 
         /// <summary>
+        /// Updates the client with a new WebSocket.
+        /// </summary>
+        /// <param name="webSocket">The websocket that the client should use.</param>
+        internal void UseWebSocket(IWebSocket? webSocket)
+        {
+            ArgumentNullException.ThrowIfNull(webSocket);
+            WebSocket = webSocket;
+        }
+
+        /// <summary>
         /// Updates the WebSocket client with a new identifier.
         /// </summary>
         /// <param name="id">The new identifier of the client</param>
@@ -90,17 +100,13 @@ namespace Jung.SimpleWebSocket.Models
             Id = id;
         }
 
-        internal void UpdateWebSocket(IWebSocket? webSocket)
-        {
-            ArgumentNullException.ThrowIfNull(webSocket);
-            WebSocket = webSocket;
-        }
-
         /// <inheritdoc />
         public void Dispose()
         {
             WebSocket?.Dispose();
+            WebSocket = null;
             ClientConnection?.Dispose();
+            ClientConnection = null;
             GC.SuppressFinalize(this);
         }
     }

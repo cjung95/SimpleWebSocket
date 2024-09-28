@@ -22,6 +22,7 @@ internal partial class WebSocketUpgradeHandler
 {
     private const string _supportedVersion = "13";
     private const string _webSocketGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    private const string _userIdHeaderName = "x-user-id";
     private string? _acceptedProtocol;
 
     private readonly INetworkStream _networkStream;
@@ -62,17 +63,12 @@ internal partial class WebSocketUpgradeHandler
         return context;
     }
 
-    public async Task AcceptWebSocketAsync(WebContext request, CancellationToken cancellationToken)
+    public async Task AcceptWebSocketAsync(WebContext request, string userId, CancellationToken cancellationToken)
     {
-        await AcceptWebSocketAsync(request, new WebContext(), null, cancellationToken);
+        await AcceptWebSocketAsync(request, userId, null, cancellationToken);
     }
 
-    public async Task AcceptWebSocketAsync(WebContext request, WebContext response, CancellationToken cancellationToken)
-    {
-        await AcceptWebSocketAsync(request, response, null, cancellationToken);
-    }
-
-    public async Task AcceptWebSocketAsync(WebContext request, string? subProtocol, CancellationToken cancellationToken)
+    public async Task AcceptWebSocketAsync(WebContext request, string userId, string? subProtocol, CancellationToken cancellationToken)
     {
         await AcceptWebSocketAsync(request, new WebContext(), subProtocol, cancellationToken);
     }
@@ -93,6 +89,7 @@ internal partial class WebSocketUpgradeHandler
             response.Headers.Add("Upgrade", "websocket");
             response.Headers.Add("Sec-WebSocket-Accept", secWebSocketAcceptString);
             response.StatusCode = HttpStatusCode.SwitchingProtocols;
+            response.Headers.Add(_userIdHeaderName, userId);
             await SendWebSocketResponseHeaders(response, cancellationToken);
             _acceptedProtocol = subProtocol;
         }
@@ -111,7 +108,19 @@ internal partial class WebSocketUpgradeHandler
         var sb = new StringBuilder(
             $"HTTP/1.1 {(int)context.StatusCode} {context.StatusDescription}\r\n");
         AddHeaders(context, sb);
-        FinishMessage(sb);
+        CompleteHeaderSection(sb);
+
+        byte[] responseBytes = Encoding.UTF8.GetBytes(sb.ToString());
+        await _networkStream.WriteAsync(responseBytes, cancellationToken);
+    }
+
+    private async Task SendWebSocketRejectResponse(WebContext context, CancellationToken cancellationToken)
+    {
+        var sb = new StringBuilder(
+            $"HTTP/1.1 409 Conflict\r\n");
+        AddHeaders(context, sb);
+        CompleteHeaderSection(sb);
+        AddBody(context, sb);
 
         byte[] responseBytes = Encoding.UTF8.GetBytes(sb.ToString());
         await _networkStream.WriteAsync(responseBytes, cancellationToken);
@@ -123,7 +132,7 @@ internal partial class WebSocketUpgradeHandler
             $"GET {context.RequestPath} HTTP/1.1\r\n" +
             $"Host: {context.HostName}:{context.Port}\r\n");
         AddHeaders(context, sb);
-        FinishMessage(sb);
+        CompleteHeaderSection(sb);
 
         byte[] responseBytes = Encoding.UTF8.GetBytes(sb.ToString());
         await _networkStream.WriteAsync(responseBytes, cancellationToken);
@@ -137,9 +146,14 @@ internal partial class WebSocketUpgradeHandler
         }
     }
 
-    private static void FinishMessage(StringBuilder sb)
+    private static void CompleteHeaderSection(StringBuilder sb)
     {
         sb.Append("\r\n");
+    }
+
+    private void AddBody(WebContext context, StringBuilder sb)
+    {
+        sb.Append(context.BodyContent);
     }
 
     private static void ValidateWebSocketHeaders(WebContext context)
@@ -238,12 +252,16 @@ internal partial class WebSocketUpgradeHandler
         // Check if the response contains '101 Switching Protocols'
         if (!response.StatusLine.Contains("101 Switching Protocols"))
         {
+            if (!string.IsNullOrEmpty(response.BodyContent))
+            {
+                throw new WebSocketUpgradeException($"Connection not upgraded. The server returned: {response.BodyContent}");
+            }
             throw new WebSocketUpgradeException("Invalid status code, expected '101 Switching Protocols'.");
         }
 
-        // Check for required headers 'Upgrade: websocket' and 'Connection: Upgrade'
+        // Check for required headers 'Upgrade: websocket' and 'Connection: upgrade'
         if (!response.ContainsHeader("Upgrade", "websocket") ||
-            !response.ContainsHeader("Connection", "Upgrade"))
+            !response.ContainsHeader("Connection", "upgrade"))
         {
             throw new WebSocketUpgradeException("Invalid 'Upgrade' or 'Connection' header.");
         }
@@ -289,5 +307,18 @@ internal partial class WebSocketUpgradeHandler
     {
         keepAliveInterval ??= TimeSpan.FromSeconds(30);
         return _websocketHelper.CreateFromStream(_networkStream.Stream, isServer, _acceptedProtocol, keepAliveInterval.Value);
+    }
+
+    internal async Task RejectWebSocketAsync(CancellationToken cancellationToken)
+    {
+        var response = new WebContext
+        {
+            BodyContent = "User ID already connected"
+        };
+
+        response.Headers.Add("Connection", "close");
+        response.Headers.Add("Content-Type", "text/plain");
+        response.Headers.Add("Content-Length", response.BodyContent.Length.ToString());
+        await SendWebSocketRejectResponse(response, cancellationToken);
     }
 }
