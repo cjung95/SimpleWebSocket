@@ -3,7 +3,6 @@
 
 using Jung.SimpleWebSocket.Exceptions;
 using System.Collections.Specialized;
-using System.Net.Http.Headers;
 
 namespace Jung.SimpleWebSocket.Models;
 
@@ -44,6 +43,11 @@ internal class WebContext(string? content = null)
     private string? _requestPath = null;
 
     /// <summary>
+    /// The body content.
+    /// </summary>
+    private string? _bodyContent = null;
+
+    /// <summary>
     /// Gets the headers of the web request.
     /// </summary>
     public NameValueCollection Headers
@@ -52,6 +56,27 @@ internal class WebContext(string? content = null)
         {
             _headers ??= ParseHeaders();
             return _headers;
+        }
+    }
+
+    public string BodyContent
+    {
+        get
+        {
+            if (_bodyContent == null)
+            {
+                var parts = _content.Split("\r\n\r\n", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                _bodyContent = parts.Length > 1 ? parts[1] : string.Empty;
+            }
+            return _bodyContent;
+        }
+        set
+        {
+            if (BodyContent != string.Empty)
+            {
+                throw new WebSocketUpgradeException("Body content is already set");
+            }
+            _bodyContent = value;
         }
     }
 
@@ -170,15 +195,23 @@ internal class WebContext(string? content = null)
     /// <param name="hostName">The host name of the web request.</param>
     /// <param name="port">The port of the web request.</param>
     /// <param name="requestPath">The request path of the web request.</param>
+    /// <param name="userId">The user id of the web request.</param>
     /// <returns>The created web request context.</returns>
-    internal static WebContext CreateRequest(string hostName, int port, string requestPath)
+    internal static WebContext CreateRequest(string hostName, int port, string requestPath, string? userId = null)
     {
-        return new WebContext()
+        var context = new WebContext()
         {
             HostName = hostName,
             Port = port,
-            RequestPath = requestPath
+            RequestPath = requestPath,
         };
+
+        if (userId != null)
+        {
+            context.Headers.Add("x-user-id", userId);
+        }
+
+        return context;
     }
 
     /// <summary>
@@ -299,6 +332,23 @@ internal class WebContext(string? content = null)
             return lines[0];
         }
     }
+
+    /// <summary>
+    /// Gets the user id of the web request.
+    /// </summary>
+    public string UserId
+    {
+        get
+        {
+            var userId = Headers["x-user-id"] ?? throw new WebSocketUpgradeException("UserId header is missing");
+            return userId;
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the web request contains a user id.
+    /// </summary>
+    public bool ContainsUserId => Headers["x-user-id"] != null;
 
     /// <summary>
     /// Gets the content lines of the web request.

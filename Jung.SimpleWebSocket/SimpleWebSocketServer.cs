@@ -129,13 +129,7 @@ namespace Jung.SimpleWebSocket
                         // Accept the client
                         var client = await _server.AcceptTcpClientAsync(linkedTokenSource.Token);
 
-                        _logger?.LogDebug("Client connected from {endpoint}", client.ClientConnection.RemoteEndPoint);
-                        var clientAdded = ActiveClients.TryAdd(client.Id, client);
-                        if (!clientAdded)
-                        {
-                            _logger?.LogError("Error while adding client to active clients, rejecting client.");
-                            continue;
-                        }
+                        _logger?.LogDebug("Client connected from {endpoint}", client.ClientConnection!.RemoteEndPoint);
 
                         _ = HandleClientAsync(client, linkedTokenSource.Token);
                     }
@@ -221,20 +215,64 @@ namespace Jung.SimpleWebSocket
         /// <returns>A asynchronous task</returns>
         private async Task HandleClientAsync(WebSocketServerClient client, CancellationToken cancellationToken)
         {
+            bool clientAdded = false;
             try
             {
                 // Upgrade the connection to a WebSocket
-                using var stream = client.ClientConnection.GetStream();
+                using var stream = client.ClientConnection!.GetStream();
                 var socketWrapper = new WebSocketUpgradeHandler(stream);
                 var request = await socketWrapper.AwaitContextAsync(cancellationToken);
-                await socketWrapper.AcceptWebSocketAsync(request, cancellationToken);
-                client.UpdateWebSocket(socketWrapper.CreateWebSocket(isServer: true));
 
-                _ = Task.Run(() => ClientConnected?.Invoke(this, new ClientConnectedArgs(client.Id)), cancellationToken);
+                // Check if the request contains a user id
+                if (request.ContainsUserId)
+                {
+                    _logger?.LogDebug("User id found in request: {userId}", request.UserId);
+                    // Check if the client is an existing passive client
+                    var clientExists = PassiveClients.ContainsKey(request.UserId);
+                    if (clientExists)
+                    {
+                        _logger?.LogDebug("Passive client found for user id {userId} - reactivating user.", request.UserId);
 
-                // Start listening for messages
-                _logger?.LogDebug("Connection upgraded, now listening on client {clientId}", client.Id);
-                await ProcessWebSocketMessagesAsync(client, cancellationToken);
+                        // Use the existing client
+                        // Update the client with the new connection
+                        // Remove the client from the passive clients
+                        var passiveClient = PassiveClients[request.UserId];
+                        passiveClient.UpdateClient(client.ClientConnection);
+                        client = passiveClient;
+                        PassiveClients.TryRemove(request.UserId, out _);
+                    }
+                    else
+                    {
+                        // No passive client found, checking for active clients with the same id
+                        if (ActiveClients.ContainsKey(request.UserId))
+                        {
+                            _logger?.LogDebug("Active client found for user id {userId} - rejecting connection.", request.UserId);
+                            // Reject the connection
+                            await socketWrapper.RejectWebSocketAsync(cancellationToken);
+                            return;
+                        }
+                        else
+                        {
+                            // Update the client with the new id
+                            client.UpdateId(request.UserId);
+                        }
+                    }
+                }
+
+                await socketWrapper.AcceptWebSocketAsync(request, client.Id, cancellationToken);
+
+                // Update the client with the new WebSocket
+                client.UseWebSocket(socketWrapper.CreateWebSocket(isServer: true));
+
+                clientAdded = ActiveClients.TryAdd(client.Id, client);
+                if (clientAdded)
+                {
+                    _ = Task.Run(() => ClientConnected?.Invoke(this, new ClientConnectedArgs(client.Id)), cancellationToken);
+                    // Start listening for messages
+                    _logger?.LogDebug("Connection upgraded, now listening on client {clientId}", client.Id);
+                    await ProcessWebSocketMessagesAsync(client, cancellationToken);
+                }
+
             }
             catch (OperationCanceledException)
             {
@@ -246,12 +284,20 @@ namespace Jung.SimpleWebSocket
             }
             finally
             {
-                if (!_serverShuttingDown)
+                // If the client was added and the server is not shutting down, handle the disconnected client
+                // The client is not added if the connection was rejected
+                if (clientAdded && !_serverShuttingDown)
                 {
-                    ActiveClients.TryRemove(client.Id, out _);
-                    client?.Dispose();
+                    HandleDisconnectedClient(client);
                 }
             }
+        }
+
+        private void HandleDisconnectedClient(WebSocketServerClient client)
+        {
+            ActiveClients.TryRemove(client.Id, out _);
+            client.Dispose();
+            PassiveClients.TryAdd(client.Id, client);
         }
 
         /// <summary>
