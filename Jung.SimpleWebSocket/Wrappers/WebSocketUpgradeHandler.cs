@@ -299,13 +299,8 @@ internal partial class WebSocketUpgradeHandler
         return _websocketHelper.CreateFromStream(_networkStream.Stream, isServer, _acceptedProtocol, keepAliveInterval.Value);
     }
 
-    internal async Task RejectWebSocketAsync(CancellationToken cancellationToken)
+    internal async Task RejectWebSocketAsync(WebContext response, CancellationToken cancellationToken)
     {
-        var response = new WebContext
-        {
-            BodyContent = "User ID already connected"
-        };
-
         response.Headers.Add("Connection", "close");
         response.Headers.Add("Content-Type", "text/plain");
         response.Headers.Add("Content-Length", response.BodyContent.Length.ToString());

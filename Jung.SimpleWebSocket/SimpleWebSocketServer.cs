@@ -255,7 +255,13 @@ namespace Jung.SimpleWebSocket
                         {
                             _logger?.LogDebug("Active client found for user id {userId} - rejecting connection.", request.UserId);
                             // Reject the connection
-                            await upgradeHandler.RejectWebSocketAsync(cancellationToken);
+
+                            var responseContext = new WebContext
+                            {
+                                StatusCode = HttpStatusCode.Conflict,
+                                BodyContent = "User id already in use"
+                            };
+                            await upgradeHandler.RejectWebSocketAsync(responseContext, cancellationToken);
                             return;
                         }
                         else
@@ -290,7 +296,7 @@ namespace Jung.SimpleWebSocket
                 {
                     // The client is rejected
                     _logger?.LogDebug("Client upgrade request rejected by ClientUpgradeRequestReceivedAsync event.");
-                    await upgradeHandler.RejectWebSocketAsync(cancellationToken);
+                    await upgradeHandler.RejectWebSocketAsync(eventArgs.ResponseContext, cancellationToken);
                 }
             }
             catch (OperationCanceledException)

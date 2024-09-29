@@ -174,9 +174,23 @@ namespace Jung.SimpleWebSocketTest
             {
                 Assert.That(receivedMessage, Is.EqualTo(Message));
                 Assert.That(receivedClosingDescription, Is.EqualTo(ClosingStatusDescription));
-                Assert.That(exceptionMessage, Does.Contain("User ID already connected"));
+                Assert.That(exceptionMessage, Does.Contain("User id already in use"));
             });
         }
+
+
+        /// <summary>
+        /// Fake Async method to simulate a database call to check if the IP address is in the database.
+        /// </summary>
+        /// <param name="ipAddress">The IP address to check.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains a value indicating whether the IP address is in the database.</returns>
+        private static async Task<bool> DbContext_IpAddresses_Contains(string ipAddress, CancellationToken cancellationToken)
+        {
+            await Task.Delay(100, cancellationToken);
+            return ipAddress == IPAddress.Loopback.ToString();
+        }
+
 
         [Test]
         [Platform("Windows7,Windows8,Windows8.1,Windows10", Reason = "This test establishes a TCP client-server connection using SimpleWebSocket, which relies on specific networking features and behaviors that are only available and consistent on Windows platforms. Running this test on non-Windows platforms could lead to inconsistent results or failures due to differences in networking stack implementations.")]
@@ -217,18 +231,6 @@ namespace Jung.SimpleWebSocketTest
 
             // Assert
             Assert.That(expiredClientId, Is.EqualTo(userId));
-        }
-
-        /// <summary>
-        /// Fake Async method to simulate a database call to check if the IP address is in the database.
-        /// </summary>
-        /// <param name="ipAddress">The IP address to check.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains a value indicating whether the IP address is in the database.</returns>
-        private static async Task<bool> DbContext_IpAddresses_Contains(string ipAddress, CancellationToken cancellationToken)
-        {
-            await Task.Delay(100, cancellationToken);
-            return ipAddress == IPAddress.Loopback.ToString();
         }
 
         [Test]
