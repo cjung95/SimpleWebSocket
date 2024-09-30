@@ -75,8 +75,7 @@ namespace Jung.SimpleWebSocketTest
             {
                 LocalIpAddress = IPAddress.Any,
                 Port = 8010,
-                ActivateUserHandling = true,
-                PassiveClientLifetime = TimeSpan.FromSeconds(5)
+                RememberDisconnectedClients = true,
             };
 
             using var server = new SimpleWebSocketServer(serverOptions, _serverLogger.Object);
@@ -119,7 +118,7 @@ namespace Jung.SimpleWebSocketTest
             server.ClientUpgradeRequestReceivedAsync += async (sender, args, cancellationToken) =>
             {
                 // Get the IP address of the client
-                var IpAddress = (args.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString();
+                var IpAddress = (args.Client.RemoteEndPoint as IPEndPoint)?.Address;
                 if (IpAddress == null)
                 {
                     args.Handle = false;
@@ -185,10 +184,10 @@ namespace Jung.SimpleWebSocketTest
         /// <param name="ipAddress">The IP address to check.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains a value indicating whether the IP address is in the database.</returns>
-        private static async Task<bool> DbContext_IpAddresses_Contains(string ipAddress, CancellationToken cancellationToken)
+        private static async Task<bool> DbContext_IpAddresses_Contains(IPAddress ipAddress, CancellationToken cancellationToken)
         {
             await Task.Delay(100, cancellationToken);
-            return ipAddress == IPAddress.Loopback.ToString();
+            return ipAddress.Equals(IPAddress.Loopback);
         }
 
 
@@ -202,7 +201,8 @@ namespace Jung.SimpleWebSocketTest
             {
                 LocalIpAddress = IPAddress.Any,
                 Port = 8010,
-                ActivateUserHandling = true,
+                RememberDisconnectedClients = true,
+                RemovePassiveClientsAfterClientExpirationTime = true,
                 PassiveClientLifetime = TimeSpan.FromSeconds(1)
             };
 
@@ -241,9 +241,7 @@ namespace Jung.SimpleWebSocketTest
             var serverOptions = new SimpleWebSocketServerOptions
             {
                 LocalIpAddress = IPAddress.Any,
-                Port = 8010,
-                ActivateUserHandling = true,
-                PassiveClientLifetime = TimeSpan.FromSeconds(1)
+                Port = 8010
             };
 
             using var server = new SimpleWebSocketServer(serverOptions, _serverLogger.Object);
@@ -312,9 +310,7 @@ namespace Jung.SimpleWebSocketTest
             var serverOptions = new SimpleWebSocketServerOptions
             {
                 LocalIpAddress = IPAddress.Any,
-                Port = 8010,
-                ActivateUserHandling = true,
-                PassiveClientLifetime = TimeSpan.FromSeconds(1)
+                Port = 8010
             };
 
             using var server = new SimpleWebSocketServer(serverOptions);

@@ -3,6 +3,8 @@
 
 using Jung.SimpleWebSocket.Models.EventArguments;
 using Microsoft.Extensions.Logging;
+using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Jung.SimpleWebSocket.Utility;
 
@@ -13,7 +15,7 @@ namespace Jung.SimpleWebSocket.Utility;
 /// <typeparam name="TValue">The type of the values in the dictionary.</typeparam>
 /// <param name="expiration">The expiration time for each item.</param>
 /// <param name="logger">The logger to log exceptions.</param>
-public class ExpiringDictionary<TKey, TValue>(TimeSpan expiration, ILogger? logger = null) where TKey : class
+public class ExpiringDictionary<TKey, TValue>(TimeSpan expiration, ILogger? logger = null): IDictionary<TKey, TValue> where TKey : class
 {
 
     /// <summary>
@@ -24,7 +26,7 @@ public class ExpiringDictionary<TKey, TValue>(TimeSpan expiration, ILogger? logg
     private readonly SortedList<DateTime, TKey> _expirationQueue = [];
     private readonly Dictionary<TKey, TValue> _dictionary = [];
 
-    private bool _cleanupInProgress = false;
+    private bool _cleanupInProgress = false;  
 
     /// <summary>
     /// Add the specified key and value to the dictionary.
@@ -188,4 +190,92 @@ public class ExpiringDictionary<TKey, TValue>(TimeSpan expiration, ILogger? logg
             }
         }
     }
+
+    #region NotImplemented
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public ICollection<TKey> Keys => throw new NotImplementedException();
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public ICollection<TValue> Values => throw new NotImplementedException();
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public int Count => throw new NotImplementedException();
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public bool IsReadOnly => throw new NotImplementedException();
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public void Add(KeyValuePair<TKey, TValue> item)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public void Clear()
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public bool Contains(KeyValuePair<TKey, TValue> item)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public bool Remove(KeyValuePair<TKey, TValue> item)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Not implemented.
+    /// </summary>
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        throw new NotImplementedException();
+    }
+
+    #endregion
 }

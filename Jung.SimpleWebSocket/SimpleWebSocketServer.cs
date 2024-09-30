@@ -9,6 +9,7 @@ using Jung.SimpleWebSocket.Models.EventArguments;
 using Jung.SimpleWebSocket.Utility;
 using Jung.SimpleWebSocket.Wrappers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.WebSockets;
@@ -48,10 +49,7 @@ namespace Jung.SimpleWebSocket
         /// <summary>
         /// A dictionary of passive clients.
         /// </summary>
-        /// <remarks>
-        /// The passive clients get removed after a certain time of inactivity.
-        /// </remarks>
-        private ExpiringDictionary<string, WebSocketServerClient> PassiveClients { get; }
+        private IDictionary<string, WebSocketServerClient> PassiveClients { get; set; } = null!;
 
         /// <inheritdoc />
         public string[] ClientIds => [.. ActiveClients.Keys];
@@ -88,6 +86,11 @@ namespace Jung.SimpleWebSocket
         private readonly ILogger? _logger;
 
         /// <summary>
+        /// The options for the server.
+        /// </summary>
+        private readonly SimpleWebSocketServerOptions _options;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SimpleWebSocketServer"/> class that listens
         /// for incoming connection attempts on the specified local IP address and port number.
         /// </summary>
@@ -98,8 +101,46 @@ namespace Jung.SimpleWebSocket
             LocalIpAddress = options.LocalIpAddress;
             Port = options.Port;
             _logger = logger;
-            PassiveClients = new(options.PassiveClientLifetime, _logger);
-            PassiveClients.ItemExpired += PassiveClients_ItemExpired;
+            _options = options;
+            InitializePassiveClientDictionary(options);
+        }
+
+        /// <summary>
+        /// Initializes the passive clients dictionary.
+        /// </summary>
+        /// <param name="options"></param>
+        private void InitializePassiveClientDictionary(SimpleWebSocketServerOptions options)
+        {
+            if (options.RememberDisconnectedClients)
+            {
+                // Initialize the passive clients dictionary
+                if (options.RemovePassiveClientsAfterClientExpirationTime)
+                {
+                    var passiveClients = new ExpiringDictionary<string, WebSocketServerClient>(options.PassiveClientLifetime, _logger);
+                    passiveClients.ItemExpired += PassiveClients_ItemExpired;
+                    PassiveClients = passiveClients;
+                }
+                else
+                {
+                    PassiveClients = new Dictionary<string, WebSocketServerClient>();
+                }
+            }
+            else
+            {
+                // If user handling is not activated, the passive clients are not needed
+                PassiveClients = null!;
+            }
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SimpleWebSocketServer"/> class that listens
+        /// for incoming connection attempts on the specified local IP address and port number.
+        /// </summary>
+        /// <param name="options">The options for the server</param>
+        /// <param name="logger">A logger to write internal log messages</param>
+        public SimpleWebSocketServer(IOptions<SimpleWebSocketServerOptions> options, ILogger? logger = null)
+            : this(options.Value, logger)
+        {
         }
 
         /// <summary>
@@ -230,44 +271,48 @@ namespace Jung.SimpleWebSocket
                 var upgradeHandler = new WebSocketUpgradeHandler(stream);
                 var request = await upgradeHandler.AwaitContextAsync(cancellationToken);
 
-                // Check if the request contains a user id
-                if (request.ContainsUserId)
+                // Check if disconnected clients are remembered and can be reactivated
+                if (_options.RememberDisconnectedClients)
                 {
-                    _logger?.LogDebug("User id found in request: {userId}", request.UserId);
-                    // Check if the client is an existing passive client
-                    var clientExists = PassiveClients.ContainsKey(request.UserId);
-                    if (clientExists)
+                    // Check if the request contains a user id
+                    if (request.ContainsUserId)
                     {
-                        _logger?.LogDebug("Passive client found for user id {userId} - reactivating user.", request.UserId);
-
-                        // Use the existing client
-                        // Update the client with the new connection
-                        // Remove the client from the passive clients
-                        var passiveClient = PassiveClients[request.UserId];
-                        passiveClient.UpdateClient(client.ClientConnection);
-                        client = passiveClient;
-                        PassiveClients.Remove(request.UserId);
-                    }
-                    else
-                    {
-                        // No passive client found, checking for active clients with the same id
-                        if (ActiveClients.ContainsKey(request.UserId))
+                        _logger?.LogDebug("User id found in request: {userId}", request.UserId);
+                        // Check if the client is an existing passive client
+                        var clientExists = PassiveClients.ContainsKey(request.UserId);
+                        if (clientExists)
                         {
-                            _logger?.LogDebug("Active client found for user id {userId} - rejecting connection.", request.UserId);
-                            // Reject the connection
+                            _logger?.LogDebug("Passive client found for user id {userId} - reactivating user.", request.UserId);
 
-                            var responseContext = new WebContext
-                            {
-                                StatusCode = HttpStatusCode.Conflict,
-                                BodyContent = "User id already in use"
-                            };
-                            await upgradeHandler.RejectWebSocketAsync(responseContext, cancellationToken);
-                            return;
+                            // Use the existing client
+                            // Update the client with the new connection
+                            // Remove the client from the passive clients
+                            var passiveClient = PassiveClients[request.UserId];
+                            passiveClient.UpdateClient(client.ClientConnection);
+                            client = passiveClient;
+                            PassiveClients.Remove(request.UserId);
                         }
                         else
                         {
-                            // Update the client with the new id
-                            client.UpdateId(request.UserId);
+                            // No passive client found, checking for active clients with the same id
+                            if (ActiveClients.ContainsKey(request.UserId))
+                            {
+                                _logger?.LogDebug("Active client found for user id {userId} - rejecting connection.", request.UserId);
+                                // Reject the connection
+
+                                var responseContext = new WebContext
+                                {
+                                    StatusCode = HttpStatusCode.Conflict,
+                                    BodyContent = "User id already in use"
+                                };
+                                await upgradeHandler.RejectWebSocketAsync(responseContext, cancellationToken);
+                                return;
+                            }
+                            else
+                            {
+                                // Update the client with the new id
+                                client.UpdateId(request.UserId);
+                            }
                         }
                     }
                 }
@@ -280,7 +325,7 @@ namespace Jung.SimpleWebSocket
                     // The client is accepted
                     await upgradeHandler.AcceptWebSocketAsync(request, eventArgs.ResponseContext, client.Id, null, cancellationToken);
 
-                    // Update the client with the new WebSocket
+                    // Use the websocket for the client
                     client.UseWebSocket(upgradeHandler.CreateWebSocket(isServer: true));
 
                     clientAdded = ActiveClients.TryAdd(client.Id, client);
@@ -318,13 +363,24 @@ namespace Jung.SimpleWebSocket
             }
         }
 
+        /// <summary>
+        /// Handles the disconnected client.
+        /// </summary>
+        /// <param name="client"></param>
         private void HandleDisconnectedClient(WebSocketServerClient client)
         {
             ActiveClients.TryRemove(client.Id, out _);
             client.Dispose();
 
-            _logger?.LogDebug("Client {clientId} is now a passive user.", client.Id);
-            PassiveClients.Add(client.Id, client);
+            if (_options.RememberDisconnectedClients)
+            {
+                _logger?.LogDebug("Client {clientId} is now a passive user.", client.Id);
+                PassiveClients.Add(client.Id, client);
+            }
+            else
+            {
+                _logger?.LogDebug("Client {clientId} is removed.", client.Id);
+            }
         }
 
         /// <summary>
@@ -378,6 +434,9 @@ namespace Jung.SimpleWebSocket
         /// <summary>
         /// Handles the event when a passive user expired.
         /// </summary>
+        /// <remarks>
+        /// Condition: <see cref="SimpleWebSocketServerOptions.RemovePassiveClientsAfterClientExpirationTime"/> is set to <c>true</c>.
+        /// </remarks>
         /// <param name="sender">The sender of the event (<see cref="PassiveClients"/>)</param>
         /// <param name="e">The arguments of the event</param>
         private void PassiveClients_ItemExpired(object? sender, ItemExpiredArgs<WebSocketServerClient> e)
