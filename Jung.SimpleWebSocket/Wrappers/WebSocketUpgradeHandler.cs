@@ -141,7 +141,7 @@ internal partial class WebSocketUpgradeHandler
         sb.Append("\r\n");
     }
 
-    private void AddBody(WebContext context, StringBuilder sb)
+    private static void AddBody(WebContext context, StringBuilder sb)
     {
         sb.Append(context.BodyContent);
     }
@@ -201,7 +201,7 @@ internal partial class WebSocketUpgradeHandler
                 return true;
             }
         }
-        throw new WebSocketUpgradeException($"The WebSocket _client requested the following protocols: '{clientSecWebSocketProtocol}', but the server accepted '{subProtocol}' protocol(s).");
+        throw new WebSocketUpgradeException($"The WebSocket Client requested the following protocols: '{clientSecWebSocketProtocol}', but the server accepted '{subProtocol}' protocol(s).");
     }
 
     internal async Task SendUpgradeRequestAsync(WebContext requestContext, CancellationToken token)

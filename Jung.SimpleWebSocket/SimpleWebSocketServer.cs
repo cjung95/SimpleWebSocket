@@ -14,6 +14,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
+using System.Threading;
 
 namespace Jung.SimpleWebSocket
 {
@@ -44,12 +45,12 @@ namespace Jung.SimpleWebSocket
         /// <summary>
         /// A dictionary of active clients.
         /// </summary>
-        private ConcurrentDictionary<string, WebSocketServerClient> ActiveClients { get; } = [];
+        internal ConcurrentDictionary<string, WebSocketServerClient> ActiveClients { get; } = [];
 
         /// <summary>
         /// A dictionary of passive clients.
         /// </summary>
-        private IDictionary<string, WebSocketServerClient> PassiveClients { get; set; } = null!;
+        internal IDictionary<string, WebSocketServerClient> PassiveClients { get; set; } = null!;
 
         /// <inheritdoc />
         public string[] ClientIds => [.. ActiveClients.Keys];
@@ -59,6 +60,16 @@ namespace Jung.SimpleWebSocket
 
         /// <inheritdoc/>
         public bool IsListening => _server?.IsListening ?? false;
+
+        /// <summary>
+        /// A logger to write internal log messages.
+        /// </summary>
+        internal ILogger? Logger { get; }
+
+        /// <summary>
+        /// The options for the server.
+        /// </summary>
+        internal SimpleWebSocketServerOptions Options { get; }
 
         /// <summary>
         /// A flag indicating whether the server is started.
@@ -81,16 +92,6 @@ namespace Jung.SimpleWebSocket
         private ITcpListener? _server;
 
         /// <summary>
-        /// A logger to write internal log messages.
-        /// </summary>
-        private readonly ILogger? _logger;
-
-        /// <summary>
-        /// The options for the server.
-        /// </summary>
-        private readonly SimpleWebSocketServerOptions _options;
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="SimpleWebSocketServer"/> class that listens
         /// for incoming connection attempts on the specified local IP address and port number.
         /// </summary>
@@ -100,8 +101,8 @@ namespace Jung.SimpleWebSocket
         {
             LocalIpAddress = options.LocalIpAddress;
             Port = options.Port;
-            _logger = logger;
-            _options = options;
+            Logger = logger;
+            Options = options;
             InitializePassiveClientDictionary(options);
         }
 
@@ -116,7 +117,7 @@ namespace Jung.SimpleWebSocket
                 // Initialize the passive clients dictionary
                 if (options.RemovePassiveClientsAfterClientExpirationTime)
                 {
-                    var passiveClients = new ExpiringDictionary<string, WebSocketServerClient>(options.PassiveClientLifetime, _logger);
+                    var passiveClients = new ExpiringDictionary<string, WebSocketServerClient>(options.PassiveClientLifetime, Logger);
                     passiveClients.ItemExpired += PassiveClients_ItemExpired;
                     PassiveClients = passiveClients;
                 }
@@ -169,7 +170,7 @@ namespace Jung.SimpleWebSocket
             _server.Start();
             _ = Task.Run(async delegate
             {
-                _logger?.LogInformation("Server started at {LocalIpAddress}:{Port}", LocalIpAddress, Port);
+                Logger?.LogInformation("Server started at {LocalIpAddress}:{Port}", LocalIpAddress, Port);
                 while (!linkedTokenSource.IsCancellationRequested)
                 {
                     try
@@ -177,7 +178,7 @@ namespace Jung.SimpleWebSocket
                         // Accept the client
                         var client = await _server.AcceptTcpClientAsync(linkedTokenSource.Token);
 
-                        _logger?.LogDebug("Client connected from {endpoint}", client.ClientConnection!.RemoteEndPoint);
+                        Logger?.LogDebug("Client connected from {endpoint}", client.ClientConnection!.RemoteEndPoint);
 
                         _ = HandleClientAsync(client, linkedTokenSource.Token);
                     }
@@ -187,7 +188,7 @@ namespace Jung.SimpleWebSocket
                     }
                     catch (Exception exception)
                     {
-                        _logger?.LogError(exception, "Error while accepting client.");
+                        Logger?.LogError(exception, "Error while accepting Client.");
                     }
                 }
             }, linkedTokenSource.Token);
@@ -203,7 +204,7 @@ namespace Jung.SimpleWebSocket
             cancellationToken ??= CancellationToken.None;
             var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken.Value, _cancellationTokenSource.Token);
 
-            _logger?.LogInformation("Stopping server...");
+            Logger?.LogInformation("Stopping server...");
 
             // copying the active clients to avoid a collection modified exception
             var activeClients = ActiveClients.Values.ToArray();
@@ -220,7 +221,7 @@ namespace Jung.SimpleWebSocket
             _cancellationTokenSource?.Cancel();
             _server?.Dispose();
             _server = null;
-            _logger?.LogInformation("Server stopped");
+            Logger?.LogInformation("Server stopped");
         }
 
         /// <inheritdoc/>
@@ -238,11 +239,11 @@ namespace Jung.SimpleWebSocket
                 // Send the message
                 var buffer = Encoding.UTF8.GetBytes(message);
                 await client.WebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, linkedTokenSource.Token);
-                _logger?.LogDebug("Message sent: {message}.", message);
+                Logger?.LogDebug("Message sent: {message}.", message);
             }
             catch (Exception exception)
             {
-                _logger?.LogError(exception, "Error while sending a message.");
+                Logger?.LogError(exception, "Error while sending a message.");
                 throw new WebSocketServerException(message: "An Error occurred sending a message.", innerException: exception);
             }
         }
@@ -263,123 +264,60 @@ namespace Jung.SimpleWebSocket
         /// <returns>A asynchronous task</returns>
         private async Task HandleClientAsync(WebSocketServerClient client, CancellationToken cancellationToken)
         {
-            bool clientAdded = false;
+            var flow = new ClientHandlingFlow(this, client, cancellationToken);
+            var clientHandled = false;
             try
             {
-                // Upgrade the connection to a WebSocket
-                using var stream = client.ClientConnection!.GetStream();
-                var upgradeHandler = new WebSocketUpgradeHandler(stream);
-                var request = await upgradeHandler.AwaitContextAsync(cancellationToken);
+                // Load the request context 
+                await flow.LoadRequestContext();
 
-                // Check if disconnected clients are remembered and can be reactivated
-                if (_options.RememberDisconnectedClients)
-                {
-                    // Check if the request contains a user id
-                    if (request.ContainsUserId)
-                    {
-                        _logger?.LogDebug("User id found in request: {userId}", request.UserId);
-                        // Check if the client is an existing passive client
-                        var clientExists = PassiveClients.ContainsKey(request.UserId);
-                        if (clientExists)
-                        {
-                            _logger?.LogDebug("Passive client found for user id {userId} - reactivating user.", request.UserId);
-
-                            // Use the existing client
-                            // Update the client with the new connection
-                            // Remove the client from the passive clients
-                            var passiveClient = PassiveClients[request.UserId];
-                            passiveClient.UpdateClient(client.ClientConnection);
-                            client = passiveClient;
-                            PassiveClients.Remove(request.UserId);
-                        }
-                        else
-                        {
-                            // No passive client found, checking for active clients with the same id
-                            if (ActiveClients.ContainsKey(request.UserId))
-                            {
-                                _logger?.LogDebug("Active client found for user id {userId} - rejecting connection.", request.UserId);
-                                // Reject the connection
-
-                                var responseContext = new WebContext
-                                {
-                                    StatusCode = HttpStatusCode.Conflict,
-                                    BodyContent = "User id already in use"
-                                };
-                                await upgradeHandler.RejectWebSocketAsync(responseContext, cancellationToken);
-                                return;
-                            }
-                            else
-                            {
-                                // Update the client with the new id
-                                client.UpdateId(request.UserId);
-                            }
-                        }
-                    }
-                }
+                // Handle the client user identification if activated
+                flow.HandleClientIdentification();
 
                 // raise async client upgrade request received event
-                var eventArgs = new ClientUpgradeRequestReceivedArgs(client, request, _logger);
+                var eventArgs = new ClientUpgradeRequestReceivedArgs(flow.Client, flow.Request, Logger);
                 await AsyncEventRaiser.RaiseAsync(ClientUpgradeRequestReceivedAsync, this, eventArgs, cancellationToken);
                 if (eventArgs.Handle)
                 {
-                    // The client is accepted
-                    await upgradeHandler.AcceptWebSocketAsync(request, eventArgs.ResponseContext, client.Id, null, cancellationToken);
+                    // The event consumer accepted the client
+                    await flow.AcceptWebSocketAsync(eventArgs.ResponseContext);
 
-                    // Use the websocket for the client
-                    client.UseWebSocket(upgradeHandler.CreateWebSocket(isServer: true));
-
-                    clientAdded = ActiveClients.TryAdd(client.Id, client);
-                    if (clientAdded)
+                    if (ActiveClients.TryAdd(flow.Client.Id, flow.Client))
                     {
-                        _ = Task.Run(() => ClientConnected?.Invoke(this, new ClientConnectedArgs(client.Id)), cancellationToken);
+                        _ = Task.Run(() => ClientConnected?.Invoke(this, new ClientConnectedArgs(flow.Client.Id)), cancellationToken);
                         // Start listening for messages
-                        _logger?.LogDebug("Connection upgraded, now listening on client {clientId}", client.Id);
-                        await ProcessWebSocketMessagesAsync(client, cancellationToken);
+                        Logger?.LogDebug("Connection upgraded, now listening on Client {clientId}", flow.Client.Id);
+                        await ProcessWebSocketMessagesAsync(flow.Client, cancellationToken);
+                        clientHandled = true;
                     }
                 }
                 else
                 {
                     // The client is rejected
-                    _logger?.LogDebug("Client upgrade request rejected by ClientUpgradeRequestReceivedAsync event.");
-                    await upgradeHandler.RejectWebSocketAsync(eventArgs.ResponseContext, cancellationToken);
+                    Logger?.LogDebug("Client upgrade request rejected by ClientUpgradeRequestReceivedAsync event.");
+                    await flow.RejectWebSocketAsync(eventArgs.ResponseContext);
                 }
             }
             catch (OperationCanceledException)
             {
                 // Ignore the exception, because it is thrown when cancellation is requested
             }
+            catch (UserNotHandledException userNotHandledException)
+            {
+                await flow.RejectWebSocketAsync(userNotHandledException.ResponseContext);
+            }
             catch (Exception exception)
             {
-                _logger?.LogError(exception, "Error while handling the client {clientId}", client.Id);
+                Logger?.LogError(exception, "Error while handling the Client {clientId}", flow.Client.Id);
             }
             finally
             {
                 // If the client was added and the server is not shutting down, handle the disconnected client
                 // The client is not added if the connection was rejected
-                if (clientAdded && !_serverShuttingDown)
+                if (clientHandled && !_serverShuttingDown)
                 {
-                    HandleDisconnectedClient(client);
+                    flow.HandleDisconnectedClient();
                 }
-            }
-        }
-
-        /// <summary>
-        /// Handles the disconnected client.
-        /// </summary>
-        /// <param name="client"></param>
-        private void HandleDisconnectedClient(WebSocketServerClient client)
-        {
-            ActiveClients.TryRemove(client.Id, out _);
-            client.Dispose();
-
-            if (_options.RememberDisconnectedClients)
-            {
-                _logger?.LogDebug("Client {clientId} is now a passive user.", client.Id);
-                PassiveClients.Add(client.Id, client);
-            }
-            else
-            {
-                _logger?.LogDebug("Client {clientId} is removed.", client.Id);
             }
         }
 
@@ -410,20 +348,20 @@ namespace Jung.SimpleWebSocket
                 {
                     // Handle the text message
                     string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    _logger?.LogDebug("Message received: {message}", receivedMessage);
+                    Logger?.LogDebug("Message received: {message}", receivedMessage);
                     _ = Task.Run(() => MessageReceived?.Invoke(this, new ClientMessageReceivedArgs(receivedMessage, client.Id)), cancellationToken);
                 }
                 else if (result.MessageType == WebSocketMessageType.Binary)
                 {
                     // Handle the binary message
-                    _logger?.LogDebug("Binary message received, length: {length} bytes", result.Count);
+                    Logger?.LogDebug("Binary message received, length: {length} bytes", result.Count);
                     _ = Task.Run(() => BinaryMessageReceived?.Invoke(this, new ClientBinaryMessageReceivedArgs(buffer[..result.Count], client.Id)), cancellationToken);
                 }
                 // We have to check if the is shutting down here,
                 // because then we already sent the close message and we don't want to send another one
                 else if (result.MessageType == WebSocketMessageType.Close && !_serverShuttingDown)
                 {
-                    _logger?.LogInformation("Received close message from client");
+                    Logger?.LogInformation("Received close message from Client");
                     _ = Task.Run(() => ClientDisconnected?.Invoke(this, new ClientDisconnectedArgs(result.CloseStatusDescription ?? string.Empty, client.Id)), cancellationToken);
                     await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     break;
@@ -441,7 +379,7 @@ namespace Jung.SimpleWebSocket
         /// <param name="e">The arguments of the event</param>
         private void PassiveClients_ItemExpired(object? sender, ItemExpiredArgs<WebSocketServerClient> e)
         {
-            _logger?.LogDebug("Passive client expired: {clientId}", e.Item.Id);
+            Logger?.LogDebug("Passive Client expired: {clientId}", e.Item.Id);
 
             // Raise the event asynchronously
             // We don't want to block the cleanup process
