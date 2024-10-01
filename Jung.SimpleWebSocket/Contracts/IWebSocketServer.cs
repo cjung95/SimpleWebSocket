@@ -42,27 +42,27 @@ public interface IWebSocketServer : IDisposable
     /// <summary>
     /// Event that is raised when a client is connected.
     /// </summary>
-    event ClientConnectedEventHandler? ClientConnected;
+    event EventHandler<ClientConnectedArgs>? ClientConnected;
 
     /// <summary>
     /// Event that is raised when a client is disconnected.
     /// </summary>
-    event ClientDisconnectedEventHandler ClientDisconnected;
+    event EventHandler<ClientDisconnectedArgs>? ClientDisconnected;
 
     /// <summary>
     /// Event that is raised when a message is received from a client.
     /// </summary>
-    event ClientMessageReceivedEventHandler? MessageReceived;
+    event EventHandler<ClientMessageReceivedArgs>? MessageReceived;
 
     /// <summary>
     /// Event that is raised when a binary message is received from a client.
     /// </summary>
-    event ClientBinaryMessageReceivedEventHandler? BinaryMessageReceived;
+    event EventHandler<ClientBinaryMessageReceivedArgs>? BinaryMessageReceived;
 
     /// <summary>
     /// Occurs when an passive user expired.
     /// </summary>
-    event PassiveUserExpiredEventHandler? PassiveUserExpiredEvent;
+    event EventHandler<PassiveUserExpiredArgs>? PassiveUserExpiredEvent;
 
     /// <summary>
     /// Async Event that is raised when a client upgrade request is received.

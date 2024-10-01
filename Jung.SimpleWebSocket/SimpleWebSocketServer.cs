@@ -29,15 +29,15 @@ namespace Jung.SimpleWebSocket
         public int Port { get; }
 
         /// <inheritdoc/>
-        public event ClientConnectedEventHandler? ClientConnected;
+        public event EventHandler<ClientConnectedArgs>? ClientConnected;
         /// <inheritdoc/>
-        public event ClientDisconnectedEventHandler? ClientDisconnected;
+        public event EventHandler<ClientDisconnectedArgs>? ClientDisconnected;
         /// <inheritdoc/>
-        public event ClientMessageReceivedEventHandler? MessageReceived;
+        public event EventHandler<ClientMessageReceivedArgs>? MessageReceived;
         /// <inheritdoc/>
-        public event ClientBinaryMessageReceivedEventHandler? BinaryMessageReceived;
+        public event EventHandler<ClientBinaryMessageReceivedArgs>? BinaryMessageReceived;
         /// <inheritdoc/>
-        public event PassiveUserExpiredEventHandler? PassiveUserExpiredEvent;
+        public event EventHandler<PassiveUserExpiredArgs>? PassiveUserExpiredEvent;
 
         /// <inheritdoc/>
         public event AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? ClientUpgradeRequestReceivedAsync;
@@ -265,7 +265,6 @@ namespace Jung.SimpleWebSocket
         private async Task HandleClientAsync(WebSocketServerClient client, CancellationToken cancellationToken)
         {
             var flow = new ClientHandlingFlow(this, client, cancellationToken);
-            var clientHandled = false;
             try
             {
                 // Load the request context 
@@ -275,25 +274,28 @@ namespace Jung.SimpleWebSocket
                 flow.HandleClientIdentification();
 
                 // raise async client upgrade request received event
-                var eventArgs = new ClientUpgradeRequestReceivedArgs(flow.Client, flow.Request, Logger);
-                await AsyncEventRaiser.RaiseAsync(ClientUpgradeRequestReceivedAsync, this, eventArgs, cancellationToken);
+                var eventArgs = await flow.RaiseUpgradeEventAsync(ClientUpgradeRequestReceivedAsync);
+
+                // Respond to the upgrade request
                 if (eventArgs.Handle)
                 {
-                    // The event consumer accepted the client
-                    await flow.AcceptWebSocketAsync(eventArgs.ResponseContext);
-
-                    if (ActiveClients.TryAdd(flow.Client.Id, flow.Client))
+                    // Accept the WebSocket connection
+                    await flow.AcceptWebSocketAsync();
+                    if (flow.TryAddClientToActiveUserList())
                     {
-                        _ = Task.Run(() => ClientConnected?.Invoke(this, new ClientConnectedArgs(flow.Client.Id)), cancellationToken);
-                        // Start listening for messages
                         Logger?.LogDebug("Connection upgraded, now listening on Client {clientId}", flow.Client.Id);
+                        AsyncEventRaiser.RaiseAsyncInNewTask(ClientConnected, this, new ClientConnectedArgs(flow.Client.Id), cancellationToken);
+                        // Start listening for messages
                         await ProcessWebSocketMessagesAsync(flow.Client, cancellationToken);
-                        clientHandled = true;
+                    }
+                    else
+                    {
+                        Logger?.LogDebug("Connection upgraded, now listening on Client {clientId}", flow.Client.Id);
                     }
                 }
                 else
                 {
-                    // The client is rejected
+                    // Reject the WebSocket connection
                     Logger?.LogDebug("Client upgrade request rejected by ClientUpgradeRequestReceivedAsync event.");
                     await flow.RejectWebSocketAsync(eventArgs.ResponseContext);
                 }
@@ -314,7 +316,7 @@ namespace Jung.SimpleWebSocket
             {
                 // If the client was added and the server is not shutting down, handle the disconnected client
                 // The client is not added if the connection was rejected
-                if (clientHandled && !_serverShuttingDown)
+                if (!_serverShuttingDown)
                 {
                     flow.HandleDisconnectedClient();
                 }
@@ -349,20 +351,20 @@ namespace Jung.SimpleWebSocket
                     // Handle the text message
                     string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
                     Logger?.LogDebug("Message received: {message}", receivedMessage);
-                    _ = Task.Run(() => MessageReceived?.Invoke(this, new ClientMessageReceivedArgs(receivedMessage, client.Id)), cancellationToken);
+                    AsyncEventRaiser.RaiseAsyncInNewTask(MessageReceived, this, new ClientMessageReceivedArgs(receivedMessage, client.Id), cancellationToken);
                 }
                 else if (result.MessageType == WebSocketMessageType.Binary)
                 {
                     // Handle the binary message
                     Logger?.LogDebug("Binary message received, length: {length} bytes", result.Count);
-                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(this, new ClientBinaryMessageReceivedArgs(buffer[..result.Count], client.Id)), cancellationToken);
+                    AsyncEventRaiser.RaiseAsyncInNewTask(BinaryMessageReceived, this, new ClientBinaryMessageReceivedArgs(buffer[..result.Count], client.Id), cancellationToken);
                 }
                 // We have to check if the is shutting down here,
                 // because then we already sent the close message and we don't want to send another one
                 else if (result.MessageType == WebSocketMessageType.Close && !_serverShuttingDown)
                 {
                     Logger?.LogInformation("Received close message from Client");
-                    _ = Task.Run(() => ClientDisconnected?.Invoke(this, new ClientDisconnectedArgs(result.CloseStatusDescription ?? string.Empty, client.Id)), cancellationToken);
+                    AsyncEventRaiser.RaiseAsyncInNewTask(ClientDisconnected, this, new ClientDisconnectedArgs(result.CloseStatusDescription ?? string.Empty, client.Id), cancellationToken);
                     await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     break;
                 }
@@ -383,7 +385,7 @@ namespace Jung.SimpleWebSocket
 
             // Raise the event asynchronously
             // We don't want to block the cleanup process
-            Task.Run(() => PassiveUserExpiredEvent?.Invoke(this, new PassiveUserExpiredArgs(e.Item.Id)));
+            AsyncEventRaiser.RaiseAsyncInNewTask(PassiveUserExpiredEvent, this, new PassiveUserExpiredArgs(e.Item.Id), _cancellationTokenSource.Token);
         }
 
         /// <inheritdoc/>

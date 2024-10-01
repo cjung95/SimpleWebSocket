@@ -1,8 +1,12 @@
 ﻿// This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
+using Jung.SimpleWebSocket.Delegates;
 using Jung.SimpleWebSocket.Models;
+using Jung.SimpleWebSocket.Models.EventArguments;
+using Jung.SimpleWebSocket.Utility;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Concurrent;
 using System.Net;
 
@@ -33,6 +37,21 @@ namespace Jung.SimpleWebSocket
         /// Gets the upgrade handler for the client.
         /// </summary>
         private WebSocketUpgradeHandler _upgradeHandler = null!;
+
+        /// <summary>
+        /// Gets the response context that is being use to response to the client.
+        /// </summary>
+        private WebContext _responseContext = null!;
+
+        /// <summary>
+        /// Gets a value indicating whether the client was accepted.
+        /// </summary>
+        private bool _clientAccepted;
+
+        /// <summary>
+        /// Gets a value indicating whether the client was a passive client.
+        /// </summary>
+        private bool _clientWasPassiveClient;
 
         /// <summary>
         /// Gets the options of the server.
@@ -103,7 +122,12 @@ namespace Jung.SimpleWebSocket
                             var passiveClient = _passiveClients[Request.UserId];
                             passiveClient.UpdateClient(Client.ClientConnection!);
                             Client = passiveClient;
-                            _passiveClients.Remove(Request.UserId);
+                            var clientRemoved = _passiveClients.Remove(Request.UserId);
+
+                            // Set the flag that the client was a passive client
+                            // This should only be set if the client was removed in this specific flow
+                            // Otherwise its possible that the client is handled twice
+                            _clientWasPassiveClient = clientRemoved;
                         }
                         else
                         {
@@ -140,14 +164,17 @@ namespace Jung.SimpleWebSocket
         /// <summary>
         /// Accepts the websocket connection.
         /// </summary>
-        /// <param name="responseContext">The response context to send to the client.</param>
-        internal async Task AcceptWebSocketAsync(WebContext responseContext)
+        internal async Task AcceptWebSocketAsync()
         {
             // The client is accepted
-            await _upgradeHandler.AcceptWebSocketAsync(Request, responseContext, Client.Id, null, _cancellationToken);
+            await _upgradeHandler.AcceptWebSocketAsync(Request, _responseContext, Client.Id, null, _cancellationToken);
 
             // Use the websocket for the client
             Client.UseWebSocket(_upgradeHandler.CreateWebSocket(isServer: true));
+
+            // Set the flag that the client was accepted
+            // This is used to determine if the client should be added to the passive clients after disconnect
+            _clientAccepted = true;
         }
 
         /// <summary>
@@ -164,21 +191,46 @@ namespace Jung.SimpleWebSocket
         /// </summary>
         internal void HandleDisconnectedClient()
         {
-            lock (_clientLock)
+            if (_clientWasPassiveClient || _clientAccepted)
             {
-                _activeClients.TryRemove(Client.Id, out _);
-                Client.Dispose();
+                lock (_clientLock)
+                {
+                    _activeClients.TryRemove(Client.Id, out _);
+                    Client.Dispose();
 
-                if (_options.RememberDisconnectedClients)
-                {
-                    _logger?.LogDebug("Client {clientId} is now a passive user.", Client.Id);
-                    _passiveClients.Add(Client.Id, Client);
-                }
-                else
-                {
-                    _logger?.LogDebug("Client {clientId} is removed.", Client.Id);
+                    if (_options.RememberDisconnectedClients)
+                    {
+                        _logger?.LogDebug("Client {clientId} is now a passive user.", Client.Id);
+                        _passiveClients.Add(Client.Id, Client);
+                    }
+                    else
+                    {
+                        _logger?.LogDebug("Client {clientId} is removed.", Client.Id);
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// Raises the upgrade event.
+        /// </summary>
+        /// <param name="clientUpgradeRequestReceivedAsync">The event handler for the upgrade request.</param>
+        /// <returns>The event arguments of the upgrade request.</returns>
+        internal async Task<ClientUpgradeRequestReceivedArgs> RaiseUpgradeEventAsync(AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? clientUpgradeRequestReceivedAsync)
+        {
+            var eventArgs = new ClientUpgradeRequestReceivedArgs(Client, Request, _logger);
+            await AsyncEventRaiser.RaiseAsync(clientUpgradeRequestReceivedAsync, server, eventArgs, _cancellationToken);
+            _responseContext = eventArgs.ResponseContext;
+            return eventArgs;
+        }
+
+        /// <summary>
+        /// Tries to add the client to the active user list.
+        /// </summary>
+        /// <returns>True if the client was added to the active user list. False if the client is already connected.</returns>
+        internal bool TryAddClientToActiveUserList()
+        {
+            return _activeClients.TryAdd(Client.Id, Client);
         }
     }
 }
