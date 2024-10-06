@@ -49,7 +49,7 @@ namespace Jung.SimpleWebSocket.Utility
         }
 
         /// <summary>
-        /// Helper method to raise an async event.
+        /// Helper method to raise an Event in a new Task.
         /// </summary>
         /// <typeparam name="TEventArgs">The type of the event arguments.</typeparam>
         /// <param name="event">The event handler</param>
@@ -62,14 +62,14 @@ namespace Jung.SimpleWebSocket.Utility
             if (@event != null)
             {
                 var invocationList = @event.GetInvocationList();
-
-                foreach (var handler in invocationList)
+                Task.Run(() =>
                 {
-                    var asyncHandler = (EventHandler<TEventArgs>)handler;
-
-                    // Execute directly if there's no synchronization context
-                    _ = Task.Run(() => asyncHandler(sender, e), cancellationToken);
-                }
+                    foreach (var handler in invocationList)
+                    {
+                        var handle = (EventHandler<TEventArgs>)handler;
+                        handle(sender, e);
+                    }
+                }, cancellationToken);
             }
         }
     }
