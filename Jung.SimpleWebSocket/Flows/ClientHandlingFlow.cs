@@ -2,6 +2,7 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket.Delegates;
+using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
 using Jung.SimpleWebSocket.Utility;

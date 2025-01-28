@@ -331,7 +331,6 @@ public partial class WebContext(string? content = null)
         }
     }
 
-
     /// <summary>
     /// Gets the concatenated headers of the web request.
     /// </summary>

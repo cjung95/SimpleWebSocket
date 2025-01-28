@@ -61,6 +61,15 @@ namespace Jung.SimpleWebSocket.Models
         }
 
         /// <summary>
+        /// Constructor for unit tests
+        /// </summary>
+        /// <param name="firstSeen">The time the user was first seen.</param>
+        internal WebSocketServerClient(DateTime firstSeen)
+        {
+            FirstSeen = LastConnectionTimestamp = firstSeen;
+        }
+
+        /// <summary>
         /// Updates the WebSocket client with a new connection.
         /// </summary>
         /// <param name="client">The new connection of the client.</param>

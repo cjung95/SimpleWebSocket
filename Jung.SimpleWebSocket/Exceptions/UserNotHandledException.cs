@@ -3,7 +3,7 @@
 
 using Jung.SimpleWebSocket.Models;
 
-namespace Jung.SimpleWebSocket
+namespace Jung.SimpleWebSocket.Exceptions
 {
     [Serializable]
     internal class UserNotHandledException(WebContext responseContext) : Exception

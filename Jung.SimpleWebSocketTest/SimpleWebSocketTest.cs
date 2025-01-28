@@ -3,8 +3,7 @@
 
 using Jung.SimpleWebSocket;
 using Jung.SimpleWebSocket.Models;
-using Microsoft.Extensions.Logging;
-using Moq;
+using Jung.SimpleWebSocketTest.Mock;
 using NUnit.Framework;
 using System.Diagnostics;
 using System.Net;
@@ -18,9 +17,8 @@ namespace Jung.SimpleWebSocketTest
     [TestFixture]
     public class SimpleWebSocketTest
     {
-        private readonly List<string> _logMessages = [];
-        private Mock<ILogger<SimpleWebSocketServer>> _serverLogger;
-        private Mock<ILogger<SimpleWebSocketServer>> _clientLogger;
+        private ILoggerMockHelper<SimpleWebSocketServer> _serverLoggerMockHelper;
+        private ILoggerMockHelper<SimpleWebSocketServer> _clientLoggerMockHelper;
 
         [OneTimeSetUp]
         public void SetUpOnce()
@@ -31,11 +29,8 @@ namespace Jung.SimpleWebSocketTest
         [SetUp]
         public void SetUp()
         {
-            _logMessages.Clear();
-            _serverLogger = new Mock<ILogger<SimpleWebSocketServer>>();
-            _clientLogger = new Mock<ILogger<SimpleWebSocketServer>>();
-            SetUpLogger(_serverLogger, "Server");
-            SetUpLogger(_clientLogger, "Client");
+            _serverLoggerMockHelper = new("Server");
+            _clientLoggerMockHelper = new("Client");
         }
 
         [OneTimeTearDown]
@@ -44,27 +39,7 @@ namespace Jung.SimpleWebSocketTest
             Trace.Flush();
         }
 
-        private void SetUpLogger<T>(Mock<ILogger<T>> mock, string loggerName)
-        {
-            mock.Setup(m => m.Log(
-                It.IsAny<LogLevel>(),
-                It.IsAny<EventId>(),
-                It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()!
-            )).Callback(new InvocationAction(invocation =>
-            {
-                var logLevel = (LogLevel)invocation.Arguments[0];
-                var eventId = (EventId)invocation.Arguments[1];
-                var state = invocation.Arguments[2];
-                var exception = (Exception)invocation.Arguments[3];
-                var formatter = invocation.Arguments[4];
 
-                var invokeMethod = formatter.GetType().GetMethod("Invoke");
-                var logMessage = invokeMethod!.Invoke(formatter, [state, exception]);
-                _logMessages.Add($"[{DateTime.Now:HH:mm:ss:fff}] {loggerName} ({logLevel}): {logMessage}");
-            }));
-        }
 
         [Test]
         [Platform("Windows7,Windows8,Windows8.1,Windows10", Reason = "This test establishes a TCP client-server connection using SimpleWebSocket, which relies on specific networking features and behaviors that are only available and consistent on Windows platforms. Running this test on non-Windows platforms could lead to inconsistent results or failures due to differences in networking stack implementations.")]
@@ -78,8 +53,8 @@ namespace Jung.SimpleWebSocketTest
                 RememberDisconnectedClients = true,
             };
 
-            using var server = new SimpleWebSocketServer(serverOptions, _serverLogger.Object);
-            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", logger: _clientLogger.Object);
+            using var server = new SimpleWebSocketServer(serverOptions, _serverLoggerMockHelper.Logger);
+            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", logger: _clientLoggerMockHelper.Logger);
 
 
             const string Message = "Hello World";
@@ -148,14 +123,14 @@ namespace Jung.SimpleWebSocketTest
             WaitForManualResetEventOrThrow(disconnectResetEvent);
 
             // test if the server accepts the client again
-            var client2 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLogger.Object);
+            var client2 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLoggerMockHelper.Logger);
             await client2.ConnectAsync();
 
             await Task.Delay(100);
             try
             {
                 // test if two clients with the same user id can connect
-                var client3 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLogger.Object);
+                var client3 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLoggerMockHelper.Logger);
                 await client3.ConnectAsync();
             }
             catch (Exception exception)
@@ -166,7 +141,7 @@ namespace Jung.SimpleWebSocketTest
             await client2.SendMessageAsync("Hello World");
 
             await server.ShutdownServer(CancellationToken.None);
-            _logMessages.ForEach(m => Trace.WriteLine(m));
+            Array.ForEach(LoggerMessages.GetMessages(), m => Trace.WriteLine(m));
 
             // Assert
             Assert.Multiple(() =>
@@ -206,8 +181,8 @@ namespace Jung.SimpleWebSocketTest
                 PassiveClientLifetime = TimeSpan.FromSeconds(1)
             };
 
-            using var server = new SimpleWebSocketServer(serverOptions, _serverLogger.Object);
-            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", userId, _clientLogger.Object);
+            using var server = new SimpleWebSocketServer(serverOptions, _serverLoggerMockHelper.Logger);
+            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", userId, _clientLoggerMockHelper.Logger);
 
             var expiredClientId = string.Empty;
             var expiredClientResetEvent = new ManualResetEvent(false);
@@ -227,7 +202,7 @@ namespace Jung.SimpleWebSocketTest
             WaitForManualResetEventOrThrow(expiredClientResetEvent, 2000);
 
             await server.ShutdownServer(CancellationToken.None);
-            _logMessages.ForEach(m => Trace.WriteLine(m));
+            Array.ForEach(LoggerMessages.GetMessages(), m => Trace.WriteLine(m));
 
             // Assert
             Assert.That(expiredClientId, Is.EqualTo(userId));
@@ -244,8 +219,8 @@ namespace Jung.SimpleWebSocketTest
                 Port = 8010
             };
 
-            using var server = new SimpleWebSocketServer(serverOptions, _serverLogger.Object);
-            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", logger: _clientLogger.Object);
+            using var server = new SimpleWebSocketServer(serverOptions, _serverLoggerMockHelper.Logger);
+            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", logger: _clientLoggerMockHelper.Logger);
 
 
             const string Message = "Hello World";
@@ -292,7 +267,7 @@ namespace Jung.SimpleWebSocketTest
             await server.ShutdownServer(CancellationToken.None);
             WaitForManualResetEventOrThrow(disconnectResetEvent, 100);
 
-            _logMessages.ForEach(m => Trace.WriteLine(m));
+            Array.ForEach(LoggerMessages.GetMessages(), m => Trace.WriteLine(m));
 
             // Assert
             Assert.Multiple(() =>
