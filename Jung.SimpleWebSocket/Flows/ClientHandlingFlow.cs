@@ -11,7 +11,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Net;
 
-namespace Jung.SimpleWebSocket
+namespace Jung.SimpleWebSocket.Flows
 {
     /// <summary>
     /// A flow that handles the client connection.
@@ -163,14 +163,14 @@ namespace Jung.SimpleWebSocket
         }
 
         /// <summary>
-        /// Accepts the websocket connection.
+        /// Accepts the web socket connection.
         /// </summary>
         internal async Task AcceptWebSocketAsync()
         {
             // The client is accepted
             await _upgradeHandler.AcceptWebSocketAsync(Request, _responseContext, Client.Id, null, _cancellationToken);
 
-            // Use the websocket for the client
+            // Use the web socket for the client
             Client.UseWebSocket(_upgradeHandler.CreateWebSocket(isServer: true));
 
             // Set the flag that the client was accepted
@@ -179,7 +179,7 @@ namespace Jung.SimpleWebSocket
         }
 
         /// <summary>
-        /// Rejects the websocket connection.
+        /// Rejects the web socket connection.
         /// </summary>
         /// <param name="responseContext">The response context to send to the client.</param>
         internal async Task RejectWebSocketAsync(WebContext responseContext)

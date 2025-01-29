@@ -54,19 +54,18 @@ namespace Jung.SimpleWebSocket.Models
         /// </summary>
         /// <param name="clientConnection">The connection of the client.</param>
         internal WebSocketServerClient(ITcpClient clientConnection)
+            : base()
         {
-            FirstSeen = DateTime.UtcNow;
-            LastConnectionTimestamp = FirstSeen;
             ClientConnection = clientConnection;
         }
 
         /// <summary>
-        /// Constructor for unit tests
+        /// Initializes a new instance of the <see cref="WebSocketServerClient"/> class without a client connection.
         /// </summary>
-        /// <param name="firstSeen">The time the user was first seen.</param>
-        internal WebSocketServerClient(DateTime firstSeen)
+        internal WebSocketServerClient()
         {
-            FirstSeen = LastConnectionTimestamp = firstSeen;
+            FirstSeen = DateTime.UtcNow;
+            LastConnectionTimestamp = FirstSeen;
         }
 
         /// <summary>
@@ -82,7 +81,7 @@ namespace Jung.SimpleWebSocket.Models
         /// <summary>
         /// Updates the client with a new WebSocket.
         /// </summary>
-        /// <param name="webSocket">The websocket that the client should use.</param>
+        /// <param name="webSocket">The web socket that the client should use.</param>
         internal void UseWebSocket(IWebSocket? webSocket)
         {
             ArgumentNullException.ThrowIfNull(webSocket);

@@ -1,6 +1,7 @@
 ﻿using Jung.SimpleWebSocket;
 using Jung.SimpleWebSocket.Contracts;
 using Jung.SimpleWebSocket.Exceptions;
+using Jung.SimpleWebSocket.Flows;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocketTest.Mock;
 using Microsoft.Extensions.Logging;
@@ -40,7 +41,7 @@ namespace Jung.SimpleWebSocketTest
             return new ClientHandlingFlow(serverMoq.Object, serverClientMoq, CancellationToken.None);
         }
 
-        private string CreateUpgradeRequest(string? userId)
+        private string CreateUpgradeRequest(string? userId = null)
         {
             var sb = new StringBuilder();
             sb.Append("GET /chat HTTP/1.1\r\n" +
@@ -52,17 +53,17 @@ namespace Jung.SimpleWebSocketTest
 
             if (!string.IsNullOrEmpty(userId))
             {
-                sb.Append("x-user-id: 6C8D0844-D84F-4AD9-B28D-23B3940887B7");
+                sb.Append($"x-user-id: {userId}");
             }
 
             sb.Append("\r\n\r\n");
             return sb.ToString();
         }
 
-
         [Test]
         public void HandleClientIdentification_NoNewUser_UserIdIsUpdated()
         {
+            // setup
             var userId = "6C8D0844-D84F-4AD9-B28D-23B3940887B7";
             var requestText = CreateUpgradeRequest(userId);
             var serverOptions = new SimpleWebSocketServerOptions
@@ -71,10 +72,12 @@ namespace Jung.SimpleWebSocketTest
             };
 
             var clientHandlingFlow = SetupClientHandlingFlow(serverOptions);
-
             clientHandlingFlow.Request = new WebContext(requestText);
+
+            // act
             clientHandlingFlow.HandleClientIdentification();
 
+            // assert
             Assert.That(clientHandlingFlow.Client.Id, Is.EqualTo(userId));
         }
 
@@ -84,9 +87,11 @@ namespace Jung.SimpleWebSocketTest
             // setup 
             var userId = "6C8D0844-D84F-4AD9-B28D-23B3940887B7";
             var activeUsers = new List<WebSocketServerClient>();
-            var client = new WebSocketServerClient(DateTime.Now);
+
+            var client = new WebSocketServerClient();
             client.UpdateId(userId);
             activeUsers.Add(client);
+
             var requestText = CreateUpgradeRequest(userId);
             var serverOptions = new SimpleWebSocketServerOptions
             {

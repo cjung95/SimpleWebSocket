@@ -4,6 +4,7 @@
 using Jung.SimpleWebSocket.Contracts;
 using Jung.SimpleWebSocket.Delegates;
 using Jung.SimpleWebSocket.Exceptions;
+using Jung.SimpleWebSocket.Flows;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
 using Jung.SimpleWebSocket.Utility;
@@ -59,7 +60,7 @@ namespace Jung.SimpleWebSocket
         public int ClientCount => ActiveClients.Count;
 
         /// <inheritdoc/>
-        public bool IsListening => _server?.IsListening ?? false;
+        public bool IsListening => _tcpListener?.IsListening ?? false;
 
         /// <summary>
         /// A logger to write internal log messages.
@@ -89,7 +90,7 @@ namespace Jung.SimpleWebSocket
         /// <summary>
         /// The server that listens for incoming connection attempts.
         /// </summary>
-        private ITcpListener? _server;
+        private ITcpListener? _tcpListener;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SimpleWebSocketServer"/> class that listens
@@ -153,7 +154,7 @@ namespace Jung.SimpleWebSocket
         internal SimpleWebSocketServer(SimpleWebSocketServerOptions options, ITcpListener tcpListener, ILogger? logger = null)
             : this(options, logger)
         {
-            _server = tcpListener;
+            _tcpListener = tcpListener;
         }
 
         /// <inheritdoc/>
@@ -166,8 +167,8 @@ namespace Jung.SimpleWebSocket
             _cancellationTokenSource = new CancellationTokenSource();
             var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken.Value, _cancellationTokenSource.Token);
 
-            _server ??= new TcpListenerWrapper(LocalIpAddress, Port);
-            _server.Start();
+            _tcpListener ??= new TcpListenerWrapper(LocalIpAddress, Port);
+            _tcpListener.Start();
             _ = Task.Run(async delegate
             {
                 Logger?.LogInformation("Server started at {LocalIpAddress}:{Port}", LocalIpAddress, Port);
@@ -176,7 +177,7 @@ namespace Jung.SimpleWebSocket
                     try
                     {
                         // Accept the client
-                        var client = await _server.AcceptTcpClientAsync(linkedTokenSource.Token);
+                        var client = await _tcpListener.AcceptTcpClientAsync(linkedTokenSource.Token);
 
                         Logger?.LogDebug("Client connected from {endpoint}", client.ClientConnection!.RemoteEndPoint);
 
@@ -219,8 +220,8 @@ namespace Jung.SimpleWebSocket
             }
 
             _cancellationTokenSource?.Cancel();
-            _server?.Dispose();
-            _server = null;
+            _tcpListener?.Dispose();
+            _tcpListener = null;
             Logger?.LogInformation("Server stopped");
         }
 
@@ -392,8 +393,8 @@ namespace Jung.SimpleWebSocket
         public void Dispose()
         {
             _cancellationTokenSource?.Cancel();
-            _server?.Dispose();
-            _server = null;
+            _tcpListener?.Dispose();
+            _tcpListener = null;
             GC.SuppressFinalize(this);
         }
     }
