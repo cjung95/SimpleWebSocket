@@ -63,7 +63,7 @@ internal partial class WebSocketUpgradeHandler
         return context;
     }
 
-    public async Task AcceptWebSocketAsync(WebContext request, WebContext response, string userId, string? subProtocol, CancellationToken cancellationToken)
+    public async Task AcceptWebSocketAsync(WebContext request, WebContext response, string? subProtocol, CancellationToken cancellationToken)
     {
         try
         {
@@ -79,7 +79,6 @@ internal partial class WebSocketUpgradeHandler
             response.Headers.Add("Upgrade", "websocket");
             response.Headers.Add("Sec-WebSocket-Accept", secWebSocketAcceptString);
             response.StatusCode = HttpStatusCode.SwitchingProtocols;
-            response.Headers.Add(_userIdHeaderName, userId);
             await SendWebSocketResponseHeaders(response, cancellationToken);
             _acceptedProtocol = subProtocol;
         }

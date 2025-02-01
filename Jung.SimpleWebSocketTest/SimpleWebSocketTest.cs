@@ -50,7 +50,6 @@ namespace Jung.SimpleWebSocketTest
             {
                 LocalIpAddress = IPAddress.Any,
                 Port = 8010,
-                RememberDisconnectedClients = true,
             };
 
             using var server = new SimpleWebSocketServer(serverOptions, _serverLoggerMockHelper.Logger);
@@ -61,7 +60,6 @@ namespace Jung.SimpleWebSocketTest
             const string ClosingStatusDescription = "closing status test description";
             string receivedMessage = string.Empty;
             string receivedClosingDescription = string.Empty;
-            string exceptionMessage = string.Empty;
 
             var messageResetEvent = new ManualResetEvent(false);
             var disconnectResetEvent = new ManualResetEvent(false);
@@ -123,21 +121,11 @@ namespace Jung.SimpleWebSocketTest
             WaitForManualResetEventOrThrow(disconnectResetEvent);
 
             // test if the server accepts the client again
-            var client2 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLoggerMockHelper.Logger);
+            var client2 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", logger: _clientLoggerMockHelper.Logger);
             await client2.ConnectAsync();
 
             await Task.Delay(100);
-            try
-            {
-                // test if two clients with the same user id can connect
-                var client3 = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", client.UserId, logger: _clientLoggerMockHelper.Logger);
-                await client3.ConnectAsync();
-            }
-            catch (Exception exception)
-            {
-                exceptionMessage = exception.InnerException!.Message;
-            }
-
+           
             await client2.SendMessageAsync("Hello World");
 
             await server.ShutdownServer(CancellationToken.None);
@@ -148,7 +136,6 @@ namespace Jung.SimpleWebSocketTest
             {
                 Assert.That(receivedMessage, Is.EqualTo(Message));
                 Assert.That(receivedClosingDescription, Is.EqualTo(ClosingStatusDescription));
-                Assert.That(exceptionMessage, Does.Contain("User id already in use"));
             });
         }
 
@@ -163,49 +150,6 @@ namespace Jung.SimpleWebSocketTest
         {
             await Task.Delay(100, cancellationToken);
             return ipAddress.Equals(IPAddress.Loopback);
-        }
-
-
-        [Test]
-        [Platform("Windows7,Windows8,Windows8.1,Windows10", Reason = "This test establishes a TCP client-server connection using SimpleWebSocket, which relies on specific networking features and behaviors that are only available and consistent on Windows platforms. Running this test on non-Windows platforms could lead to inconsistent results or failures due to differences in networking stack implementations.")]
-        public async Task TestClientServerConnection_ShouldRemoveClientFromPassiveClients()
-        {
-            // Arrange
-            string userId = Guid.NewGuid().ToString();
-            var serverOptions = new SimpleWebSocketServerOptions
-            {
-                LocalIpAddress = IPAddress.Any,
-                Port = 8010,
-                RememberDisconnectedClients = true,
-                RemovePassiveClientsAfterClientExpirationTime = true,
-                PassiveClientLifetime = TimeSpan.FromSeconds(1)
-            };
-
-            using var server = new SimpleWebSocketServer(serverOptions, _serverLoggerMockHelper.Logger);
-            using var client = new SimpleWebSocketClient(IPAddress.Loopback.ToString(), 8010, "/", userId, _clientLoggerMockHelper.Logger);
-
-            var expiredClientId = string.Empty;
-            var expiredClientResetEvent = new ManualResetEvent(false);
-
-            server.PassiveUserExpiredEvent += (sender, args) =>
-            {
-                expiredClientId = args.ClientId;
-                expiredClientResetEvent.Set();
-            };
-
-            // Act
-            server.Start();
-            await client.ConnectAsync();
-            await Task.Delay(100);
-            await client.DisconnectAsync();
-
-            WaitForManualResetEventOrThrow(expiredClientResetEvent, 2000);
-
-            await server.ShutdownServer(CancellationToken.None);
-            Array.ForEach(LoggerMessages.GetMessages(), m => Trace.WriteLine(m));
-
-            // Assert
-            Assert.That(expiredClientId, Is.EqualTo(userId));
         }
 
         [Test]
