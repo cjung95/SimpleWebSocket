@@ -213,6 +213,20 @@ namespace Jung.SimpleWebSocket
             return client;
         }
 
+        /// <inheritdoc/>
+        public void ChangeClientId(WebSocketServerClient client, string newId)
+        {
+            // if the client is not found or the new id is already in use, throw an exception
+            if (!ActiveClients.TryGetValue(client.Id, out var _)) throw new ClientNotFoundException(message: "A client with the given id was not found");
+            if (ActiveClients.ContainsKey(newId)) throw new ClientIdAlreadyExistsException(message: "A client with the new id already exists");
+
+            // because the id is used as a key in the dictionary,
+            // we have to remove the client and add it again with the new id
+            ActiveClients.TryRemove(client.Id, out _);
+            client.UpdateId(newId);
+            ActiveClients.TryAdd(newId, client);
+        }
+
         /// <summary>
         /// Handles the client connection.
         /// </summary>

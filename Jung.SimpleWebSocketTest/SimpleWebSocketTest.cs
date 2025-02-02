@@ -2,6 +2,7 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket;
+using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocketTest.Mock;
 using NUnit.Framework;
@@ -39,7 +40,80 @@ namespace Jung.SimpleWebSocketTest
             Trace.Flush();
         }
 
+        [Test]
+        public void ChangeClientId_UserIdUnique_ShouldUpdateId()
+        {
+            // Arrange
+            var serverOptions = new SimpleWebSocketServerOptions
+            {
+                LocalIpAddress = IPAddress.Any,
+                Port = 8010,
+            };
 
+            var connectedClient1 = new WebSocketServerClient();
+            var connectedClient2 = new WebSocketServerClient();
+            var oldId = connectedClient1.Id;
+
+            using var server = new SimpleWebSocketServer(serverOptions, _serverLoggerMockHelper.Logger);
+            if (!server.ActiveClients.TryAdd(connectedClient1.Id, connectedClient1) ||
+            !server.ActiveClients.TryAdd(connectedClient2.Id, connectedClient2))
+            {
+                throw new Exception("Could not add clients to the server.");
+            }
+
+            // Act
+            var newId = Guid.NewGuid().ToString();
+            server.ChangeClientId(connectedClient1, newId);
+
+            // Assert
+            Assert.Multiple(() =>
+            {
+                Assert.That(connectedClient1.Id, Is.EqualTo(newId));
+                Assert.That(server.ActiveClients.ContainsKey(oldId), Is.False);
+                Assert.That(server.ActiveClients.ContainsKey(newId), Is.True);
+            });
+        }
+
+        [Test]
+        public void ChangeClientId_UserIdDuplicated_ShouldThrowException()
+        {
+            // Arrange
+            var serverOptions = new SimpleWebSocketServerOptions
+            {
+                LocalIpAddress = IPAddress.Any,
+                Port = 8010,
+            };
+
+            var connectedClient1 = new WebSocketServerClient();
+            var connectedClient2 = new WebSocketServerClient();
+
+
+            using var server = new SimpleWebSocketServer(serverOptions, _serverLoggerMockHelper.Logger);
+            if (!server.ActiveClients.TryAdd(connectedClient1.Id, connectedClient1) ||
+            !server.ActiveClients.TryAdd(connectedClient2.Id, connectedClient2))
+            {
+                throw new Exception("Could not add clients to the server.");
+            }
+
+            // Act & Assert
+            Assert.That(() => server.ChangeClientId(connectedClient1, connectedClient2.Id), Throws.Exception.TypeOf<ClientIdAlreadyExistsException>());
+        }
+
+        [Test]
+        public void ChangeClientId_TargetUserNotExisting_ShouldThrowException()
+        {
+            // Arrange
+            var serverOptions = new SimpleWebSocketServerOptions
+            {
+                LocalIpAddress = IPAddress.Any,
+                Port = 8010,
+            };
+
+            using var server = new SimpleWebSocketServer(serverOptions, _serverLoggerMockHelper.Logger);
+
+            // Act & Assert
+            Assert.That(() => server.ChangeClientId(new WebSocketServerClient(), Guid.NewGuid().ToString()), Throws.Exception.TypeOf<ClientNotFoundException>());
+        }
 
         [Test]
         [Platform("Windows7,Windows8,Windows8.1,Windows10", Reason = "This test establishes a TCP client-server connection using SimpleWebSocket, which relies on specific networking features and behaviors that are only available and consistent on Windows platforms. Running this test on non-Windows platforms could lead to inconsistent results or failures due to differences in networking stack implementations.")]
@@ -125,7 +199,7 @@ namespace Jung.SimpleWebSocketTest
             await client2.ConnectAsync();
 
             await Task.Delay(100);
-           
+
             await client2.SendMessageAsync("Hello World");
 
             await server.ShutdownServer(CancellationToken.None);
