@@ -7,6 +7,7 @@ using Jung.SimpleWebSocket.Models.EventArguments;
 using Jung.SimpleWebSocket.Utility;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Jung.SimpleWebSocket.Flows
 {
@@ -29,17 +30,17 @@ namespace Jung.SimpleWebSocket.Flows
         /// <summary>
         /// Gets the request context of the client.
         /// </summary>
-        internal WebContext Request { get; set; } = null!;
+        internal WebContext? Request { get; set; } = null!;
 
         /// <summary>
         /// Gets the upgrade handler for the client.
         /// </summary>
-        private WebSocketUpgradeHandler _upgradeHandler = null!;
+        private WebSocketUpgradeHandler? _upgradeHandler = null;
 
         /// <summary>
         /// Gets the response context that is being use to response to the client.
         /// </summary>
-        private WebContext _responseContext = null!;
+        private WebContext? _responseContext = null;
 
         /// <summary>
         /// Gets the active clients of the server.
@@ -57,11 +58,6 @@ namespace Jung.SimpleWebSocket.Flows
         private readonly CancellationToken _cancellationToken = cancellationToken;
 
         /// <summary>
-        /// The lock object for the client dictionaries.
-        /// </summary>
-        private static readonly object _clientLock = new();
-
-        /// <summary>
         /// Loads the request context.
         /// </summary>
         internal async Task LoadRequestContext()
@@ -76,11 +72,15 @@ namespace Jung.SimpleWebSocket.Flows
         /// </summary>
         internal async Task AcceptWebSocketAsync()
         {
+            // Check if the response context are initialized
+            ThrowForResponseContextNotInitialized(_responseContext);
+
             // The client is accepted
-            await _upgradeHandler.AcceptWebSocketAsync(Request, _responseContext, null, _cancellationToken);
+            await _upgradeHandler!.AcceptWebSocketAsync(Request!, _responseContext, null, _cancellationToken);
 
             // Use the web socket for the client
             Client.UseWebSocket(_upgradeHandler.CreateWebSocket(isServer: true));
+            Cleanup();
         }
 
         /// <summary>
@@ -89,7 +89,9 @@ namespace Jung.SimpleWebSocket.Flows
         /// <param name="responseContext">The response context to send to the client.</param>
         internal async Task RejectWebSocketAsync(WebContext responseContext)
         {
-            await _upgradeHandler.RejectWebSocketAsync(responseContext, _cancellationToken);
+            // The client is rejected
+            await _upgradeHandler!.RejectWebSocketAsync(responseContext, _cancellationToken);
+            Cleanup();
         }
 
         /// <summary>
@@ -97,13 +99,10 @@ namespace Jung.SimpleWebSocket.Flows
         /// </summary>
         internal void HandleDisconnectedClient()
         {
-            lock (_clientLock)
-            {
-                _activeClients.TryRemove(Client.Id, out _);
-                Client.Dispose();
+            _activeClients.TryRemove(Client.Id, out _);
+            Client.Dispose();
 
-                _logger?.LogDebug("Client {clientId} is removed.", Client.Id);
-            }
+            _logger?.LogDebug("Client {clientId} is removed.", Client.Id);
         }
 
         /// <summary>
@@ -113,7 +112,7 @@ namespace Jung.SimpleWebSocket.Flows
         /// <returns>The event arguments of the upgrade request.</returns>
         internal async Task<ClientUpgradeRequestReceivedArgs> RaiseUpgradeEventAsync(AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? clientUpgradeRequestReceivedAsync)
         {
-            var eventArgs = new ClientUpgradeRequestReceivedArgs(Client, Request, _logger);
+            var eventArgs = new ClientUpgradeRequestReceivedArgs(Client, Request!, _logger);
             await AsyncEventRaiser.RaiseAsync(clientUpgradeRequestReceivedAsync, server, eventArgs, _cancellationToken);
             _responseContext = eventArgs.ResponseContext;
             return eventArgs;
@@ -126,6 +125,29 @@ namespace Jung.SimpleWebSocket.Flows
         internal bool TryAddClientToActiveUserList()
         {
             return _activeClients.TryAdd(Client.Id, Client);
+        }
+
+        /// <summary>
+        /// Throws an exception if the response context is not initialized.
+        /// </summary>
+        /// <param name="responseContext">The response context to check.</param>
+        /// <exception cref="InvalidOperationException"></exception>
+        private static void ThrowForResponseContextNotInitialized([NotNull] WebContext? responseContext)
+        {
+            if (responseContext is null)
+            {
+                throw new InvalidOperationException("The response context is not initialized.");
+            }
+        }
+
+        /// <summary>
+        /// Disposes the upgrade handler.
+        /// </summary>
+        private void Cleanup()
+        {
+            _upgradeHandler = null;
+            _responseContext = null;
+            Request = null;
         }
     }
 }

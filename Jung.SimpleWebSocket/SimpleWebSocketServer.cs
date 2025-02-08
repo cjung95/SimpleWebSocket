@@ -241,7 +241,7 @@ namespace Jung.SimpleWebSocket
                 // Load the request context 
                 await flow.LoadRequestContext();
 
-                // raise async client upgrade request received event
+                // Raise async client upgrade request received event
                 var eventArgs = await flow.RaiseUpgradeEventAsync(ClientUpgradeRequestReceivedAsync);
 
                 // Respond to the upgrade request
@@ -249,6 +249,7 @@ namespace Jung.SimpleWebSocket
                 {
                     // Accept the WebSocket connection
                     await flow.AcceptWebSocketAsync();
+
                     if (flow.TryAddClientToActiveUserList())
                     {
                         Logger?.LogDebug("Connection upgraded, now listening on Client {clientId}", flow.Client.Id);
@@ -258,7 +259,7 @@ namespace Jung.SimpleWebSocket
                     }
                     else
                     {
-                        Logger?.LogDebug("Connection upgraded, now listening on Client {clientId}", flow.Client.Id);
+                        Logger?.LogDebug("Error while adding Client {clientId} to active clients", flow.Client.Id);
                     }
                 }
                 else
