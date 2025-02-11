@@ -22,11 +22,10 @@ internal partial class WebSocketUpgradeHandler
 {
     private const string _supportedVersion = "13";
     private const string _webSocketGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-    private const string _userIdHeaderName = "x-user-id";
     private string? _acceptedProtocol;
 
     private readonly INetworkStream _networkStream;
-    private readonly WebSocketHelper _websocketHelper;
+    private readonly WebSocketHelper _webSocketHelper;
 
     // Regex for a valid request path: must start with a `/` and can include valid path characters.
     [GeneratedRegex(@"^\/[a-zA-Z0-9\-._~\/]*$", RegexOptions.Compiled)]
@@ -36,13 +35,13 @@ internal partial class WebSocketUpgradeHandler
     public WebSocketUpgradeHandler(INetworkStream networkStream)
     {
         _networkStream = networkStream;
-        _websocketHelper = new WebSocketHelper();
+        _webSocketHelper = new WebSocketHelper();
     }
 
-    internal WebSocketUpgradeHandler(INetworkStream networkStream, WebSocketHelper websocketHelper)
+    internal WebSocketUpgradeHandler(INetworkStream networkStream, WebSocketHelper webSocketHelper)
     {
         _networkStream = networkStream;
-        _websocketHelper = websocketHelper;
+        _webSocketHelper = webSocketHelper;
     }
 
     public async Task<WebContext> AwaitContextAsync(CancellationToken cancellationToken)
@@ -63,7 +62,7 @@ internal partial class WebSocketUpgradeHandler
         return context;
     }
 
-    public async Task AcceptWebSocketAsync(WebContext request, WebContext response, string userId, string? subProtocol, CancellationToken cancellationToken)
+    public async Task AcceptWebSocketAsync(WebContext request, WebContext response, string? subProtocol, CancellationToken cancellationToken)
     {
         try
         {
@@ -79,7 +78,6 @@ internal partial class WebSocketUpgradeHandler
             response.Headers.Add("Upgrade", "websocket");
             response.Headers.Add("Sec-WebSocket-Accept", secWebSocketAcceptString);
             response.StatusCode = HttpStatusCode.SwitchingProtocols;
-            response.Headers.Add(_userIdHeaderName, userId);
             await SendWebSocketResponseHeaders(response, cancellationToken);
             _acceptedProtocol = subProtocol;
         }
@@ -89,7 +87,7 @@ internal partial class WebSocketUpgradeHandler
         }
         catch (Exception message)
         {
-            throw new WebSocketException("Error while accepting the websocket", message);
+            throw new WebSocketException("Error while accepting the web socket", message);
         }
     }
 
@@ -296,7 +294,7 @@ internal partial class WebSocketUpgradeHandler
     internal IWebSocket CreateWebSocket(bool isServer, TimeSpan? keepAliveInterval = null)
     {
         keepAliveInterval ??= TimeSpan.FromSeconds(30);
-        return _websocketHelper.CreateFromStream(_networkStream.Stream, isServer, _acceptedProtocol, keepAliveInterval.Value);
+        return _webSocketHelper.CreateFromStream(_networkStream.Stream, isServer, _acceptedProtocol, keepAliveInterval.Value);
     }
 
     internal async Task RejectWebSocketAsync(WebContext response, CancellationToken cancellationToken)

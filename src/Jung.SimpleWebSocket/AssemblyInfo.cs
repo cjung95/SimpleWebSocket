@@ -21,5 +21,5 @@ using System.Runtime.InteropServices;
 [assembly: Guid("ca34219d-7a2e-4993-ad9d-f27fda1bb9dc")]
 
 // Make internals visible to the test project and the dynamic proxy assembly (moq)
-[assembly: InternalsVisibleTo("Jung.SimpleWebSocketTest")]
+[assembly: InternalsVisibleTo("Jung.SimpleWebSocket.UnitTests")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]

@@ -238,9 +238,8 @@ public partial class WebContext(string? content = null)
     /// <param name="hostName">The host name of the web request.</param>
     /// <param name="port">The port of the web request.</param>
     /// <param name="requestPath">The request path of the web request.</param>
-    /// <param name="userId">The user id of the web request.</param>
     /// <returns>The created web request context.</returns>
-    internal static WebContext CreateRequest(string hostName, int port, string requestPath, string? userId = null)
+    internal static WebContext CreateRequest(string hostName, int port, string requestPath)
     {
         var context = new WebContext()
         {
@@ -249,12 +248,7 @@ public partial class WebContext(string? content = null)
             RequestPath = requestPath,
         };
 
-        if (userId != null)
-        {
-            context.Headers.Add("x-user-id", userId);
-        }
-
-        return context;
+       return context;
     }
 
     /// <summary>
@@ -396,24 +390,6 @@ public partial class WebContext(string? content = null)
         var enumName = Enum.GetName(statusCode) ?? throw new WebSocketUpgradeException("Status code is not a valid HttpStatusCode");
         return string.Join(" ", _splitByUppercaseRegex.Split(enumName));
     }
-
-
-    /// <summary>
-    /// Gets the user id of the web request.
-    /// </summary>
-    public string UserId
-    {
-        get
-        {
-            var userId = Headers["x-user-id"] ?? throw new WebSocketUpgradeException("UserId header is missing");
-            return userId;
-        }
-    }
-
-    /// <summary>
-    /// Gets a value indicating whether the web request contains a user id.
-    /// </summary>
-    public bool ContainsUserId => Headers["x-user-id"] != null;
 
     /// <summary>
     /// Gets the content lines of the web request.

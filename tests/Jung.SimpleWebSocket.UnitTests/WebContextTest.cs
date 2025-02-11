@@ -5,7 +5,10 @@ using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
 using NUnit.Framework;
 
-namespace Jung.SimpleWebSocketTest
+// internals of the simple web socket project are visible to the test project
+// because of the InternalsVisibleTo attribute in the AssemblyInfo.cs
+
+namespace Jung.SimpleWebSocket.UnitTests
 {
     [TestFixture]
     internal class WebContextTest

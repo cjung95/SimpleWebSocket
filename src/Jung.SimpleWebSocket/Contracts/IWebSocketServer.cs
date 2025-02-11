@@ -2,9 +2,9 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket.Delegates;
+using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
-using Jung.SimpleWebSocket.Utility;
 using System.Net;
 
 namespace Jung.SimpleWebSocket.Contracts;
@@ -60,11 +60,6 @@ public interface IWebSocketServer : IDisposable
     event EventHandler<ClientBinaryMessageReceivedArgs>? BinaryMessageReceived;
 
     /// <summary>
-    /// Occurs when an passive user expired.
-    /// </summary>
-    event EventHandler<PassiveUserExpiredArgs>? PassiveUserExpiredEvent;
-
-    /// <summary>
     /// Async Event that is raised when a client upgrade request is received.
     /// </summary>
     event AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? ClientUpgradeRequestReceivedAsync;
@@ -98,4 +93,13 @@ public interface IWebSocketServer : IDisposable
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     void Start(CancellationToken? cancellationToken = null);
+
+    /// <summary>
+    /// Changes the id of a client.
+    /// </summary>
+    /// <param name="client">The client to update</param>
+    /// <param name="newId">The new id of the client</param>
+    /// <exception cref="ClientNotFoundException">Throws when the client is not found</exception>
+    /// <exception cref="ClientIdAlreadyExistsException">Throws when the new id is already in use</exception>
+    void ChangeClientId(WebSocketServerClient client, string newId);
 }

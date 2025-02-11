@@ -1,7 +1,6 @@
 ﻿// This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
-using Jung.SimpleWebSocket;
 using Jung.SimpleWebSocket.Contracts;
 using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Helpers;
@@ -10,7 +9,10 @@ using Moq;
 using NUnit.Framework;
 using System.Text;
 
-namespace Jung.SimpleWebSocketTest
+// internals of the simple web socket project are visible to the test project
+// because of the InternalsVisibleTo attribute in the AssemblyInfo.cs
+
+namespace Jung.SimpleWebSocket.UnitTests
 {
     public class WebSocketUpgradeHandlerTests
     {
@@ -64,7 +66,7 @@ namespace Jung.SimpleWebSocketTest
             _mockNetworkStream.Setup(ns => ns.WriteAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>())).Callback<byte[], CancellationToken>((buffer, ct) => { response = Encoding.UTF8.GetString(buffer); });
 
             // Act
-            await _socketWrapper.AcceptWebSocketAsync(request,new WebContext(), Guid.NewGuid().ToString(), null,  cancellationToken);
+            await _socketWrapper.AcceptWebSocketAsync(request, new WebContext(), null, cancellationToken);
 
             // Assert
             Assert.That(response, Does.Contain("HTTP/1.1 101 Switching Protocols"));
@@ -90,7 +92,7 @@ namespace Jung.SimpleWebSocketTest
             _mockNetworkStream.Setup(ns => ns.WriteAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>())).Callback<byte[], CancellationToken>((buffer, ct) => { response = Encoding.UTF8.GetString(buffer); });
 
             // Act
-            await _socketWrapper.AcceptWebSocketAsync(request, new WebContext(), Guid.NewGuid().ToString(), serverSubprotocol, cancellationToken);
+            await _socketWrapper.AcceptWebSocketAsync(request, new WebContext(), serverSubprotocol, cancellationToken);
 
             // Assert
             Assert.Multiple(() =>
