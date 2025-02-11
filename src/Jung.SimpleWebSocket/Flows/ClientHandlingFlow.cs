@@ -141,7 +141,7 @@ namespace Jung.SimpleWebSocket.Flows
         }
 
         /// <summary>
-        /// Disposes the upgrade handler.
+        /// Releases resources that are no longer required.
         /// </summary>
         private void Cleanup()
         {
