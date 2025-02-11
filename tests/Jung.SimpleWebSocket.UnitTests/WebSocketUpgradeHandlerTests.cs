@@ -1,7 +1,6 @@
 ﻿// This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
-using Jung.SimpleWebSocket;
 using Jung.SimpleWebSocket.Contracts;
 using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Helpers;
@@ -10,7 +9,10 @@ using Moq;
 using NUnit.Framework;
 using System.Text;
 
-namespace Jung.SimpleWebSocketTest
+// internals of the simple web socket project are visible to the test project
+// because of the InternalsVisibleTo attribute in the AssemblyInfo.cs
+
+namespace Jung.SimpleWebSocket.UnitTests
 {
     public class WebSocketUpgradeHandlerTests
     {

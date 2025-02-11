@@ -1,19 +1,18 @@
 // This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
-using Jung.SimpleWebSocket;
 using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
-using Jung.SimpleWebSocketTest.Mock;
+using Jung.SimpleWebSocket.UnitTests.Mock;
 using NUnit.Framework;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
 
-// internals of the simple web socket are visible to the test project
+// internals of the simple web socket project are visible to the test project
 // because of the InternalsVisibleTo attribute in the AssemblyInfo.cs
 
-namespace Jung.SimpleWebSocketTest
+namespace Jung.SimpleWebSocket.UnitTests
 {
     [TestFixture]
     public class SimpleWebSocketTest

@@ -18,7 +18,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Jung.SimpleWebSocket\Jung.SimpleWebSocket.csproj" />
+		<ProjectReference Include="..\..\src\Jung.SimpleWebSocket\Jung.SimpleWebSocket.csproj" />
 	</ItemGroup>
 
 </Project>

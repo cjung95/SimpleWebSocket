@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35222.181
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jung.SimpleWebSocket", "Jung.SimpleWebSocket\Jung.SimpleWebSocket.csproj", "{793B04E9-6326-425A-A29C-A736CFD1E0C0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jung.SimpleWebSocket", "src\Jung.SimpleWebSocket\Jung.SimpleWebSocket.csproj", "{793B04E9-6326-425A-A29C-A736CFD1E0C0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jung.SimpleWebSocketTest", "Jung.SimpleWebSocketTest\Jung.SimpleWebSocketTest.csproj", "{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jung.SimpleWebSocket.UnitTests", "tests\Jung.SimpleWebSocket.UnitTests\Jung.SimpleWebSocket.UnitTests.csproj", "{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jung.SimpleWebSocket.IntegrationTests", "tests\Jung.SimpleWebSocket.IntegrationTests\Jung.SimpleWebSocket.IntegrationTests.csproj", "{144CF5BC-D92F-4BC4-80E9-A2FABA93C8A2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{144CF5BC-D92F-4BC4-80E9-A2FABA93C8A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{144CF5BC-D92F-4BC4-80E9-A2FABA93C8A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{144CF5BC-D92F-4BC4-80E9-A2FABA93C8A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{144CF5BC-D92F-4BC4-80E9-A2FABA93C8A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
