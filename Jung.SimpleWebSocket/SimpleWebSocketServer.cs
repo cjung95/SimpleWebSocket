@@ -274,21 +274,29 @@ namespace Jung.SimpleWebSocket
             while (webSocket.State == WebSocketState.Open)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                // Read the next message
-                WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                var messageBuffer = new List<byte>();
+                WebSocketReceiveResult result;
+
+                do
+                {
+                    // read the incoming message in chunks
+                    result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                    messageBuffer.AddRange(buffer.Take(result.Count));
+                }
+                while (!result.EndOfMessage);
 
                 if (result.MessageType == WebSocketMessageType.Text)
                 {
                     // Handle the text message
-                    string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    string receivedMessage = Encoding.UTF8.GetString([.. messageBuffer]);
                     _logger?.LogDebug("Message received: {message}", receivedMessage);
                     _ = Task.Run(() => MessageReceived?.Invoke(this, new ClientMessageReceivedArgs(receivedMessage, client.Id)), cancellationToken);
                 }
                 else if (result.MessageType == WebSocketMessageType.Binary)
                 {
                     // Handle the binary message
-                    _logger?.LogDebug("Binary message received, length: {length} bytes", result.Count);
-                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(this, new ClientBinaryMessageReceivedArgs(buffer[..result.Count], client.Id)), cancellationToken);
+                    _logger?.LogDebug("Binary message received, length: {length} bytes", messageBuffer.Count);
+                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(this, new ClientBinaryMessageReceivedArgs([.. messageBuffer], client.Id)), cancellationToken);
                 }
                 // We have to check if the is shutting down here,
                 // because then we already sent the close message and we don't want to send another one
