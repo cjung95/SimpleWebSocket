@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jung.SimpleWebSocket", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jung.SimpleWebSocket.UnitTests", "tests\Jung.SimpleWebSocket.UnitTests\Jung.SimpleWebSocket.UnitTests.csproj", "{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jung.SimpleWebSocket.IntegrationTests", "tests\Jung.SimpleWebSocket.IntegrationTests\Jung.SimpleWebSocket.IntegrationTests.csproj", "{D052400A-9F1E-4F2E-98B9-AF74A7A16A2F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{26725C3C-8E90-49AC-9EE4-2A77ADB2229D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D052400A-9F1E-4F2E-98B9-AF74A7A16A2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D052400A-9F1E-4F2E-98B9-AF74A7A16A2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D052400A-9F1E-4F2E-98B9-AF74A7A16A2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D052400A-9F1E-4F2E-98B9-AF74A7A16A2F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

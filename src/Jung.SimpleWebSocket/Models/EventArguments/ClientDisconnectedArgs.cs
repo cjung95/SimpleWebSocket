@@ -3,9 +3,9 @@
 
 namespace Jung.SimpleWebSocket.Models.EventArguments;
 
-/// <summary>
-/// Represents the arguments of the event when a client disconnects from the server.
-/// </summary>
-/// <param name="ClosingStatusDescription">The description why the closing status was initiated.</param>
-/// <param name="ClientId">The unique identifier of the client that disconnected from the server.</param>
-public record ClientDisconnectedArgs(string ClosingStatusDescription, string ClientId);
+/// <summary>  
+/// Represents the arguments of the event when a client disconnects from the server.  
+/// </summary>  
+/// <param name="ClosingStatusDescription">The reason for the connection closure. <see langword="null"/> if the remote party closed the WebSocket connection without completing the close handshake.</param>
+/// <param name="ClientId">The unique identifier of the client that disconnected from the server.</param>  
+public record ClientDisconnectedArgs(string? ClosingStatusDescription, string ClientId);

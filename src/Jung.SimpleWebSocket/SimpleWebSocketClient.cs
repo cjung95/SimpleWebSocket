@@ -23,7 +23,7 @@ namespace Jung.SimpleWebSocket
     /// <param name="port">The port to connect to</param>
     /// <param name="requestPath">The web socket request path</param>
     /// <param name="logger">A logger to write internal log messages</param>
-    public class SimpleWebSocketClient(string hostName, int port, string requestPath, ILogger? logger = null) : IWebSocketClient, IDisposable
+    public class SimpleWebSocketClient(string hostName, int port, string requestPath, ILogger<SimpleWebSocketClient>? logger = null) : IWebSocketClient, IDisposable
     {
         /// <inheritdoc/>
         public string HostName { get; } = hostName;
@@ -64,8 +64,21 @@ namespace Jung.SimpleWebSocket
 
         /// <summary>
         /// A value indicating whether the client is disconnecting.
+        /// <para>0=Not disconnecting, 1=Disconnecting</para>
         /// </summary>
-        private bool _clientIsDisconnecting;
+        private int _clientIsDisconnecting = 0;
+
+
+        /// <summary>
+        /// A value indicating whether the client is disposed.
+        /// <para>0=Not Disposed, 1=Disposed</para>
+        /// </summary>
+        private int _disposed = 0;
+
+        /// <summary>
+        /// Gets a value indicating whether the client is disposed.
+        /// </summary>
+        private bool Disposed => _disposed == 1;
 
         /// <summary>
         /// The logger to write internal log messages.
@@ -75,6 +88,8 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public async Task ConnectAsync(CancellationToken? cancellationToken = null)
         {
+            ThrowIfDisposed();
+
             if (IsConnected) throw new WebSocketClientException(message: "Client is already connected");
             cancellationToken ??= CancellationToken.None;
 
@@ -108,18 +123,21 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public async Task DisconnectAsync(string closingStatusDescription = "Closing", CancellationToken? cancellationToken = null)
         {
-            if (_clientIsDisconnecting) throw new WebSocketClientException("Client is already disconnecting");
-            _clientIsDisconnecting = true;
+            // Make sure we only disconnect once
+            if (Interlocked.Exchange(ref _clientIsDisconnecting, 1) == 1)
+            {
+                return;
+            }
 
             cancellationToken ??= CancellationToken.None;
             var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken.Value, _cancellationTokenSource.Token);
 
-            _logger?.LogInformation("Disconnecting from Server");
 
             if (_webSocket != null && (_webSocket.State == WebSocketState.Open || _webSocket.State == WebSocketState.CloseReceived))
             {
                 try
                 {
+                    _logger?.LogInformation("Disconnecting from Server");
                     await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, closingStatusDescription, linkedTokenSource.Token);
                 }
                 catch (Exception exception)
@@ -135,7 +153,6 @@ namespace Jung.SimpleWebSocket
                     }
                 }
             }
-            _client?.Dispose();
         }
 
         /// <summary>
@@ -161,6 +178,8 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public async Task SendMessageAsync(string message, CancellationToken? cancellationToken = null)
         {
+            ThrowIfDisposed();
+
             if (!IsConnected) throw new WebSocketClientException(message: "Client is not connected");
             if (_webSocket == null) throw new WebSocketClientException(message: "WebSocket is not initialized");
 
@@ -176,6 +195,7 @@ namespace Jung.SimpleWebSocket
             }
             catch (Exception exception)
             {
+                _logger?.LogError(exception, "Error sending message");
                 throw new WebSocketClientException(message: "Error sending message", innerException: exception);
             }
         }
@@ -194,45 +214,61 @@ namespace Jung.SimpleWebSocket
                 throw new InvalidOperationException("WebSocket is not initialized");
             }
 
-            var buffer = new byte[1024 * 4]; // Buffer for incoming data
-            while (webSocket.State == WebSocketState.Open)
+            try
             {
+                var buffer = new byte[1024 * 4]; // Buffer for incoming data
+                while (webSocket.State == WebSocketState.Open)
+                {
 
-                // Read the next message
-                WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                    // Read the next message
+                    WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
 
-                if (result.MessageType == WebSocketMessageType.Text)
-                {
-                    // Handle the text message
-                    string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    _logger?.LogDebug("Message received: {message}", receivedMessage);
-                    _ = Task.Run(() => MessageReceived?.Invoke(this, new MessageReceivedArgs(receivedMessage)), cancellationToken);
+                    if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        // Handle the text message
+                        string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        _logger?.LogDebug("Message received: {message}", receivedMessage);
+                        _ = Task.Run(() => MessageReceived?.Invoke(this, new MessageReceivedArgs(receivedMessage)), cancellationToken);
+                    }
+                    else if (result.MessageType == WebSocketMessageType.Binary)
+                    {
+                        // Handle the binary message
+                        _logger?.LogDebug("Binary message received, length: {length} bytes", result.Count);
+                        _ = Task.Run(() => BinaryMessageReceived?.Invoke(this, new BinaryMessageReceivedArgs(buffer[..result.Count])), cancellationToken);
+                    }
+                    // We have to check if the client is disconnecting here,
+                    // because then we already sent the close message and we don't want to send another one
+                    else if (result.MessageType == WebSocketMessageType.Close && _clientIsDisconnecting == 0)
+                    {
+                        _logger?.LogInformation("Received close message from server");
+                        _ = Task.Run(() => Disconnected?.Invoke(this, new DisconnectedArgs(result.CloseStatusDescription ?? string.Empty)), cancellationToken);
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                        break;
+                    }
                 }
-                else if (result.MessageType == WebSocketMessageType.Binary)
-                {
-                    // Handle the binary message
-                    _logger?.LogDebug("Binary message received, length: {length} bytes", result.Count);
-                    _ = Task.Run(() => BinaryMessageReceived?.Invoke(this, new BinaryMessageReceivedArgs(buffer[..result.Count])), cancellationToken);
-                }
-                // We have to check if the client is disconnecting here,
-                // because then we already sent the close message and we don't want to send another one
-                else if (result.MessageType == WebSocketMessageType.Close && !_clientIsDisconnecting)
-                {
-                    _logger?.LogInformation("Received close message from server");
-                    _ = Task.Run(() => Disconnected?.Invoke(this, new DisconnectedArgs(result.CloseStatusDescription ?? string.Empty)), cancellationToken);
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                    break;
-                }
+            }
+            catch (Exception exception)
+            {
+                _logger?.LogError(exception, "Error processing WebSocket messages. Connection Closed.");
+                _ = Task.Run(() => Disconnected?.Invoke(this, new DisconnectedArgs(exception.Message)), cancellationToken);
             }
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            _cancellationTokenSource?.Cancel();
-            _stream?.Dispose();
-            _client?.Dispose();
-            GC.SuppressFinalize(this);
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                _cancellationTokenSource?.Cancel();
+                _stream?.Dispose();
+                _client?.Dispose();
+                GC.SuppressFinalize(this);
+            }
+        }
+
+        private void ThrowIfDisposed()
+        {
+            ObjectDisposedException.ThrowIf(Disposed, this);
         }
     }
 }

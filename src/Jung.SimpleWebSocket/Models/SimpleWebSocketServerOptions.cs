@@ -19,5 +19,10 @@ namespace Jung.SimpleWebSocket.Models
         /// Gets or sets the port of the server.
         /// </summary>
         public int Port { get; set; }
+
+        /// <summary>
+        /// Gets or sets the log level of the server.
+        /// </summary>
+        public string LogLevel { get; set; } = "Information";
     }
 }
