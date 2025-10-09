@@ -2,7 +2,6 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket.IntegrationTests.Tests;
-using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 

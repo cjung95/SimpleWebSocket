@@ -104,6 +104,12 @@ namespace Jung.SimpleWebSocket
         private int _disposed;
 
         /// <summary>
+        /// A flag indicating whether the server is disposing.
+        /// <para>0 = false, 1 = true</para>s
+        /// </summary>
+        private int _disposing;
+
+        /// <summary>
         /// A cancellation token source to cancel the server.
         /// </summary>
         private CancellationTokenSource _cancellationTokenSource = new();
@@ -409,16 +415,23 @@ namespace Jung.SimpleWebSocket
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            if (Interlocked.Exchange(ref _disposing, 1) == 1)
             {
                 return;
             }
 
-            ShutdownServer().GetAwaiter().GetResult();
-            _cancellationTokenSource?.Cancel();
-            _tcpListener?.Dispose();
-            _tcpListener = null;
-            GC.SuppressFinalize(this);
+            try
+            {
+                ShutdownServer().GetAwaiter().GetResult();
+                _cancellationTokenSource?.Cancel();
+                _tcpListener?.Dispose();
+                _tcpListener = null;
+                GC.SuppressFinalize(this);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _disposed, 1);
+            }
         }
 
         private void ThrowIfDisposed()
