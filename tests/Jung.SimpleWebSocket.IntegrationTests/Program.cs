@@ -62,11 +62,11 @@ namespace Jung.SimpleWebSocket.IntegrationTests
             {
                 if (serviceProvider.GetService(procedure.ProcedureType) is not BaseTest test)
                 {
-                    logger.LogError("The chosen test procedure could not be loaded");
+                    logger.LogError("The chosen test procedure {procedureType} could not be loaded.", procedure.ProcedureType.FullName);
                 }
                 else
                 {
-                    Console.WriteLine($"\nRunning test: {procedure.Name}: {procedure.Description}");
+                    logger.LogInformation("Running test: {procedureName} ({procedureDescription})", procedure.Name, procedure.Description);
                     await test.RunAsync();
                 }
             }
@@ -82,6 +82,7 @@ namespace Jung.SimpleWebSocket.IntegrationTests
 
             Log.Logger = new LoggerConfiguration()
             .WriteTo.File($"{procedure.Name}-{DateTime.Now:g}-{Guid.NewGuid():n}.txt", rollingInterval: RollingInterval.Day)
+            .WriteTo.Console(Serilog.Events.LogEventLevel.Information, outputTemplate: "{Level:u3}: {Message:lj}{NewLine}{Exception}")
             .MinimumLevel.Debug()
             .CreateLogger();
 

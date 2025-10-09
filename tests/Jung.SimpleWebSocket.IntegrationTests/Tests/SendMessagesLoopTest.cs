@@ -1,7 +1,8 @@
 ﻿// This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
-using Jung.SimpleWebSocket.Delegates;
+using Jung.SimpleWebSocket.Exceptions;
+using Jung.SimpleWebSocket.Models.EventArguments;
 using Microsoft.Extensions.Logging;
 
 namespace Jung.SimpleWebSocket.IntegrationTests.Tests
@@ -16,29 +17,38 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
 
             using var client = new SimpleWebSocketClient("localhost", 8085, "", clientLogger);
 
-            InitializeClientEvents(client, cancellationTokenSource);
+            InitializeClientEvents(client);
 
             try
             {
                 await client.ConnectAsync();
+
+                var task = Task.Run(async () => await SendRandomMessages(client, token));
+
+                Console.WriteLine("Press any key to disconnect from the server...");
+                Console.ReadKey();
+
+                await client.DisconnectAsync();
+                cancellationTokenSource.Cancel();
+                await task;
+            }
+            catch (WebSocketConnectionException exception)
+            {
+                _logger.LogError("Failed to connect to the server: {ExceptionMessage}", exception.Message);
+
             }
             catch (Exception exception)
             {
-                _logger.LogError("Failed to connect to the server: {ExceptionMessage}", exception.Message);
+                _logger.LogError("An error occurred: {ExceptionMessage}", exception.Message);
                 return;
             }
-
-            var task = Task.Run(async () => await SendRandomMessages(client, token));
-
-            Console.WriteLine("Press any key to disconnect from the server...");
-            Console.ReadKey();
-
-            await client.DisconnectAsync();
-            cancellationTokenSource.Cancel();
-            await task;
+            finally
+            {
+                UnsubscribeEvents(client);
+            }
         }
 
-        private static async Task SendRandomMessages(SimpleWebSocketClient client, CancellationToken cancellationToken)
+        private async Task SendRandomMessages(SimpleWebSocketClient client, CancellationToken cancellationToken)
         {
             Random random = new();
             int messageCount = 1;
@@ -46,9 +56,16 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
             {
                 try
                 {
+                    if(!client.IsConnected)
+                    {
+                        // If the client is not connected, exit the loop.
+                        _logger.LogWarning("Client is not connected. Stopping message sending loop.");
+                        break;
+                    }
+
                     string message = $"Message {messageCount++} sent at {DateTime.Now}";
                     await client.SendMessageAsync(message, cancellationToken).ConfigureAwait(false);
-                    Console.WriteLine($"Sent: {message}");
+                    _logger.LogInformation("Sent: {message}", message);
 
                     int delay = random.Next(5000, 20001); // Random delay between 5s (5000ms) and 20s (20000ms)
                     await Task.Delay(delay, cancellationToken);
@@ -57,33 +74,41 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
                 {
                     if (exception is not OperationCanceledException)
                     {
-                        Console.WriteLine($"Exception: {exception.Message}");
+                        _logger.LogError(exception, "Error while sending the message.");
                     }
                     break;
                 }
             }
         }
 
-        private static void InitializeClientEvents(SimpleWebSocketClient client, CancellationTokenSource cancellationTokenSource)
+        private  void InitializeClientEvents(SimpleWebSocketClient client)
         {
-            DisconnectedEventHandler? disconnectedHandler = null;
-            MessageReceivedEventHandler? messageReceivedHandler = null;
+            client.Disconnected += Client_Disconnected;
+            client.MessageReceived += Client_MessageReceived;
+            client.BinaryMessageReceived += Client_BinaryMessageReceived;
+        }
 
-            disconnectedHandler = (sender, e) =>
-            {
-                Console.WriteLine("Disconnected");
-                cancellationTokenSource.Cancel();
-                client.Disconnected -= disconnectedHandler;
-                client.MessageReceived -= messageReceivedHandler;
-            };
+        private  void UnsubscribeEvents(SimpleWebSocketClient client)
+        {
+            client.Disconnected -= Client_Disconnected;
+            client.MessageReceived -= Client_MessageReceived;
+            client.BinaryMessageReceived -= Client_BinaryMessageReceived;
+        }
 
-            messageReceivedHandler = (sender, e) =>
-            {
-                Console.WriteLine($"Message received: {e.Message}");
-            };
 
-            client.Disconnected += disconnectedHandler;
-            client.MessageReceived += messageReceivedHandler;
+        private void Client_BinaryMessageReceived(object sender, BinaryMessageReceivedArgs e)
+        {
+            _logger.LogInformation("Binary message received: {binaryMessage}", BitConverter.ToString(e.Message));
+        }
+
+        private  void Client_MessageReceived(object sender, MessageReceivedArgs e)
+        {
+            _logger.LogInformation("Message received: {message}", e.Message);
+        }
+
+        private  void Client_Disconnected(object sender, DisconnectedArgs e)
+        {
+            _logger.LogInformation("Disconnected");
         }
     }
 }

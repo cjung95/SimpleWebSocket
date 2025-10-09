@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Jung.SimpleWebSocket.IntegrationTests.Tests
 {
     [TestInformation(Role = "Server", Description = "Display the events of the server.")]
-    internal class DisplayEventsTest(SimpleWebSocketServer simpleWebSocketServer, ILogger<DisplayEventsTest> logger) : BaseTest(logger)
+    internal class DisplayEventsTest(ILogger<DisplayEventsTest> logger, SimpleWebSocketServer simpleWebSocketServer) : BaseTest(logger)
     {
         /// <summary>
         /// The SimpleWebSocketServer instance.
@@ -51,28 +51,28 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
 
         private void SimpleWebSocketServer_ClientConnected(object? sender, ClientConnectedArgs e)
         {
-            Console.WriteLine($"Client connected: {e.ClientId}");
+            _logger.LogInformation("Client connected: {ClientId}", e.ClientId);
         }
 
         private void SimpleWebSocketServer_ClientDisconnected(object? sender, ClientDisconnectedArgs e)
         {
-            Console.WriteLine($"Client disconnected: {e.ClientId}");
+            _logger.LogInformation("Client disconnected: {ClientId}", e.ClientId);
         }
 
         private void SimpleWebSocketServer_MessageReceived(object? sender, ClientMessageReceivedArgs e)
         {
-            Console.WriteLine($"Message received from {e.ClientId}: {e.Message}");
+            _logger.LogInformation("Message received from {ClientId}: {Message}", e.ClientId, e.Message);
         }
 
         private void SimpleWebSocketServer_BinaryMessageReceived(object? sender, ClientBinaryMessageReceivedArgs e)
         {
-            Console.WriteLine($"Binary message received from {e.ClientId}: {string.Join(' ', e.Message)}");
+            _logger.LogInformation("Binary message received from {ClientId}: {messages}", e.ClientId, string.Join(' ', e.Message));
         }
 
-        private static async Task ClientUpgradeRequestReceived(object sender, ClientUpgradeRequestReceivedArgs e, CancellationToken cancellationToken)
+        private Task ClientUpgradeRequestReceived(object sender, ClientUpgradeRequestReceivedArgs e, CancellationToken cancellationToken)
         {
-            Console.WriteLine($"Upgrade request received from {e.Client.Id}.");
-            await Task.CompletedTask;
+            _logger.LogInformation("Upgrade request received from {ClientId}.", e.Client.Id);
+            return Task.CompletedTask;
         }
     }
 }

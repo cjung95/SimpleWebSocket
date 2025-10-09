@@ -8,6 +8,7 @@ using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
 using Jung.SimpleWebSocket.Wrappers;
 using Microsoft.Extensions.Logging;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 
@@ -109,7 +110,11 @@ namespace Jung.SimpleWebSocket
             catch (Exception exception)
             {
                 _logger?.LogError(exception, "Error connecting to Server");
-                if (exception is WebSocketException)
+                if (exception is SocketException)
+                {
+                    throw new WebSocketConnectionException(message: "Error connecting to Server", innerException: exception);
+                }
+                else if (exception is WebSocketException)
                 {
                     throw;
                 }
