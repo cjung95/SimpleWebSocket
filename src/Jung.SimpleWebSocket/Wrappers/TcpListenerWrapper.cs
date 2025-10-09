@@ -13,7 +13,7 @@ namespace Jung.SimpleWebSocket.Wrappers
         public bool IsListening => Active;
         public new async Task<WebSocketServerClient> AcceptTcpClientAsync(CancellationToken cancellationToken)
         {
-            var tcpClient = await WaitAndWrap(AcceptSocketAsync(cancellationToken));
+            var tcpClient = await WaitAndWrap(AcceptSocketAsync(cancellationToken)).ConfigureAwait(false);
 
             static async ValueTask<TcpClientWrapper> WaitAndWrap(ValueTask<Socket> task) =>
                 new TcpClientWrapper(await task.ConfigureAwait(false));

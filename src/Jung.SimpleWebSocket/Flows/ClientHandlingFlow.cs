@@ -64,7 +64,7 @@ namespace Jung.SimpleWebSocket.Flows
         {
             var stream = Client.ClientConnection!.GetStream();
             _upgradeHandler = new WebSocketUpgradeHandler(stream);
-            Request = await _upgradeHandler.AwaitContextAsync(_cancellationToken);
+            Request = await _upgradeHandler.AwaitContextAsync(_cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace Jung.SimpleWebSocket.Flows
             ThrowForResponseContextNotInitialized(_responseContext);
 
             // The client is accepted
-            await _upgradeHandler!.AcceptWebSocketAsync(Request!, _responseContext, null, _cancellationToken);
+            await _upgradeHandler!.AcceptWebSocketAsync(Request!, _responseContext, null, _cancellationToken).ConfigureAwait(false);
 
             // Use the web socket for the client
             Client.UseWebSocket(_upgradeHandler.CreateWebSocket(isServer: true));
@@ -90,7 +90,7 @@ namespace Jung.SimpleWebSocket.Flows
         internal async Task RejectWebSocketAsync(WebContext responseContext)
         {
             // The client is rejected
-            await _upgradeHandler!.RejectWebSocketAsync(responseContext, _cancellationToken);
+            await _upgradeHandler!.RejectWebSocketAsync(responseContext, _cancellationToken).ConfigureAwait(false);
             Cleanup();
         }
 
@@ -113,7 +113,7 @@ namespace Jung.SimpleWebSocket.Flows
         internal async Task<ClientUpgradeRequestReceivedArgs> RaiseUpgradeEventAsync(AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? clientUpgradeRequestReceivedAsync)
         {
             var eventArgs = new ClientUpgradeRequestReceivedArgs(Client, Request!, _logger);
-            await AsyncEventRaiser.RaiseAsync(clientUpgradeRequestReceivedAsync, server, eventArgs, _cancellationToken);
+            await AsyncEventRaiser.RaiseAsync(clientUpgradeRequestReceivedAsync, server, eventArgs, _cancellationToken).ConfigureAwait(false);
             _responseContext = eventArgs.ResponseContext;
             return eventArgs;
         }

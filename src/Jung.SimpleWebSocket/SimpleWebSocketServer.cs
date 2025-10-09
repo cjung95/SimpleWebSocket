@@ -167,7 +167,7 @@ namespace Jung.SimpleWebSocket
                     try
                     {
                         // Accept the client
-                        var client = await _tcpListener.AcceptTcpClientAsync(linkedTokenSource.Token);
+                        var client = await _tcpListener.AcceptTcpClientAsync(linkedTokenSource.Token).ConfigureAwait(false);
 
                         Logger?.LogDebug("Client connected from {endpoint}", client.ClientConnection!.RemoteEndPoint);
 
@@ -215,7 +215,7 @@ namespace Jung.SimpleWebSocket
                 {
                     if (client.WebSocket != null && client.WebSocket.State == WebSocketState.Open)
                     {
-                        await client.WebSocket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "Server is shutting down", linkedTokenSource.Token);
+                        await client.WebSocket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "Server is shutting down", linkedTokenSource.Token).ConfigureAwait(false);
                         ActiveClients.TryRemove(client.Id, out _);
                         client?.Dispose();
                     }
@@ -251,7 +251,7 @@ namespace Jung.SimpleWebSocket
             {
                 // Send the message
                 var buffer = Encoding.UTF8.GetBytes(message);
-                await client.WebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, linkedTokenSource.Token).ConfigureAwait(false); ;
+                await client.WebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, linkedTokenSource.Token).ConfigureAwait(false);
                 Logger?.LogDebug("Message sent: {message}.", message);
             }
             catch (Exception exception)
@@ -299,23 +299,23 @@ namespace Jung.SimpleWebSocket
             try
             {
                 // Load the request context 
-                await flow.LoadRequestContext();
+                await flow.LoadRequestContext().ConfigureAwait(false);
 
                 // Raise async client upgrade request received event
-                var eventArgs = await flow.RaiseUpgradeEventAsync(ClientUpgradeRequestReceivedAsync);
+                var eventArgs = await flow.RaiseUpgradeEventAsync(ClientUpgradeRequestReceivedAsync).ConfigureAwait(false);
 
                 // Respond to the upgrade request
                 if (eventArgs.Handle)
                 {
                     // Accept the WebSocket connection
-                    await flow.AcceptWebSocketAsync();
+                    await flow.AcceptWebSocketAsync().ConfigureAwait(false);
 
                     if (flow.TryAddClientToActiveUserList())
                     {
                         Logger?.LogDebug("Connection upgraded, now listening on Client {clientId}", flow.Client.Id);
                         AsyncEventRaiser.RaiseAsyncInNewTask(ClientConnected, this, new ClientConnectedArgs(flow.Client.Id), cancellationToken);
                         // Start listening for messages
-                        await ProcessWebSocketMessagesAsync(flow.Client, cancellationToken);
+                        await ProcessWebSocketMessagesAsync(flow.Client, cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
@@ -326,7 +326,7 @@ namespace Jung.SimpleWebSocket
                 {
                     // Reject the WebSocket connection
                     Logger?.LogDebug("Client upgrade request rejected by ClientUpgradeRequestReceivedAsync event.");
-                    await flow.RejectWebSocketAsync(eventArgs.ResponseContext);
+                    await flow.RejectWebSocketAsync(eventArgs.ResponseContext).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
@@ -335,7 +335,7 @@ namespace Jung.SimpleWebSocket
             }
             catch (UserNotHandledException userNotHandledException)
             {
-                await flow.RejectWebSocketAsync(userNotHandledException.ResponseContext);
+                await flow.RejectWebSocketAsync(userNotHandledException.ResponseContext).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
@@ -376,7 +376,7 @@ namespace Jung.SimpleWebSocket
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     // Read the next message
-                    WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                    WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
 
                     if (result.MessageType == WebSocketMessageType.Text)
                     {
@@ -397,7 +397,7 @@ namespace Jung.SimpleWebSocket
                     {
                         Logger?.LogInformation("Received close message from Client");
                         closeStatusDescription = result.CloseStatusDescription;
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None).ConfigureAwait(false);
                         break;
                     }
                 }

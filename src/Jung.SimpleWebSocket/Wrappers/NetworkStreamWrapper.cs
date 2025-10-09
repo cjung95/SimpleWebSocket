@@ -19,7 +19,7 @@ namespace Jung.SimpleWebSocket.Wrappers
 
         public async ValueTask<int> ReadAsync(byte[] buffer, CancellationToken cancellationToken)
         {
-            return await stream.ReadAsync(buffer, cancellationToken);
+            return await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
         }
 
         public ValueTask WriteAsync(byte[] responseBytes, CancellationToken cancellationToken)

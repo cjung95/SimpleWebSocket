@@ -101,8 +101,8 @@ namespace Jung.SimpleWebSocket
             try
             {
                 _client = new TcpClientWrapper();
-                await _client.ConnectAsync(HostName, Port);
-                await HandleWebSocketInitiation(_client, linkedTokenSource.Token);
+                await _client.ConnectAsync(HostName, Port).ConfigureAwait(false);
+                await HandleWebSocketInitiation(_client, linkedTokenSource.Token).ConfigureAwait(false);
 
                 _logger?.LogDebug("Connection upgraded, now listening.");
                 _ = ProcessWebSocketMessagesAsync(_webSocket!, linkedTokenSource.Token);
@@ -143,7 +143,7 @@ namespace Jung.SimpleWebSocket
                 try
                 {
                     _logger?.LogInformation("Disconnecting from Server");
-                    await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, closingStatusDescription, linkedTokenSource.Token);
+                    await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, closingStatusDescription, linkedTokenSource.Token).ConfigureAwait(false);
                 }
                 catch (Exception exception)
                 {
@@ -173,8 +173,8 @@ namespace Jung.SimpleWebSocket
             var socketWrapper = new WebSocketUpgradeHandler(_stream);
 
             var requestContext = WebContext.CreateRequest(HostName, Port, RequestPath);
-            await socketWrapper.SendUpgradeRequestAsync(requestContext, cancellationToken);
-            var response = await socketWrapper.AwaitContextAsync(cancellationToken);
+            await socketWrapper.SendUpgradeRequestAsync(requestContext, cancellationToken).ConfigureAwait(false);
+            var response = await socketWrapper.AwaitContextAsync(cancellationToken).ConfigureAwait(false);
             WebSocketUpgradeHandler.ValidateUpgradeResponse(response, requestContext);
 
             _webSocket = socketWrapper.CreateWebSocket(isServer: false);
@@ -195,7 +195,7 @@ namespace Jung.SimpleWebSocket
             {
                 // Send the message
                 var buffer = Encoding.UTF8.GetBytes(message);
-                await _webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, linkedTokenSource.Token);
+                await _webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, linkedTokenSource.Token).ConfigureAwait(false);
                 _logger?.LogDebug("Message sent: {message}", message);
             }
             catch (Exception exception)
@@ -226,7 +226,7 @@ namespace Jung.SimpleWebSocket
                 {
 
                     // Read the next message
-                    WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                    WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
 
                     if (result.MessageType == WebSocketMessageType.Text)
                     {
@@ -247,7 +247,7 @@ namespace Jung.SimpleWebSocket
                     {
                         _logger?.LogInformation("Received close message from server");
                         _ = Task.Run(() => Disconnected?.Invoke(this, new DisconnectedArgs(result.CloseStatusDescription ?? string.Empty)), cancellationToken);
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None).ConfigureAwait(false);
                         break;
                     }
                 }
