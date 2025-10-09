@@ -36,13 +36,13 @@ namespace Jung.SimpleWebSocket.Utility
                         // Post back to the captured context if it's not null
                         syncContext.Post(async _ =>
                         {
-                            await asyncHandler(sender, e, cancellationToken);
+                            await asyncHandler(sender, e, cancellationToken).ConfigureAwait(false);
                         }, null);
                     }
                     else
                     {
                         // Execute directly if there's no synchronization context
-                        await asyncHandler(sender, e, cancellationToken);
+                        await asyncHandler(sender, e, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }

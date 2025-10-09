@@ -18,7 +18,7 @@ namespace Jung.SimpleWebSocket.UnitTests
     public class SimpleWebSocketTest
     {
         private ILoggerMockHelper<SimpleWebSocketServer> _serverLoggerMockHelper;
-        private ILoggerMockHelper<SimpleWebSocketServer> _clientLoggerMockHelper;
+        private ILoggerMockHelper<SimpleWebSocketClient> _clientLoggerMockHelper;
 
         [OneTimeSetUp]
         public void SetUpOnce()
@@ -151,7 +151,7 @@ namespace Jung.SimpleWebSocket.UnitTests
 
             server.ClientDisconnected += (sender, obj) =>
             {
-                receivedClosingDescription = obj.ClosingStatusDescription;
+                receivedClosingDescription = obj.ClosingStatusDescription ?? string.Empty;
                 disconnectResetEvent.Set();
             };
 

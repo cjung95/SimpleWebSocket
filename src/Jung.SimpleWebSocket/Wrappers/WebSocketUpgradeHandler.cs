@@ -53,7 +53,7 @@ internal partial class WebSocketUpgradeHandler
         while (!readingStarted || _networkStream.DataAvailable)
         {
             readingStarted = true;
-            var bytesRead = await _networkStream.ReadAsync(buffer, cancellationToken);
+            var bytesRead = await _networkStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
             sb.Append(Encoding.ASCII.GetString(buffer[..bytesRead]));
         }
 
@@ -78,7 +78,7 @@ internal partial class WebSocketUpgradeHandler
             response.Headers.Add("Upgrade", "websocket");
             response.Headers.Add("Sec-WebSocket-Accept", secWebSocketAcceptString);
             response.StatusCode = HttpStatusCode.SwitchingProtocols;
-            await SendWebSocketResponseHeaders(response, cancellationToken);
+            await SendWebSocketResponseHeaders(response, cancellationToken).ConfigureAwait(false);
             _acceptedProtocol = subProtocol;
         }
         catch (WebSocketUpgradeException)
@@ -99,7 +99,7 @@ internal partial class WebSocketUpgradeHandler
         CompleteHeaderSection(sb);
 
         byte[] responseBytes = Encoding.UTF8.GetBytes(sb.ToString());
-        await _networkStream.WriteAsync(responseBytes, cancellationToken);
+        await _networkStream.WriteAsync(responseBytes, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task SendWebSocketRejectResponse(WebContext context, CancellationToken cancellationToken)
@@ -111,7 +111,7 @@ internal partial class WebSocketUpgradeHandler
         AddBody(context, sb);
 
         byte[] responseBytes = Encoding.UTF8.GetBytes(sb.ToString());
-        await _networkStream.WriteAsync(responseBytes, cancellationToken);
+        await _networkStream.WriteAsync(responseBytes, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task SendWebSocketRequestHeaders(WebContext context, CancellationToken cancellationToken)
@@ -123,7 +123,7 @@ internal partial class WebSocketUpgradeHandler
         CompleteHeaderSection(sb);
 
         byte[] responseBytes = Encoding.UTF8.GetBytes(sb.ToString());
-        await _networkStream.WriteAsync(responseBytes, cancellationToken);
+        await _networkStream.WriteAsync(responseBytes, cancellationToken).ConfigureAwait(false);
     }
 
     private static void AddHeaders(WebContext response, StringBuilder sb)
@@ -213,7 +213,7 @@ internal partial class WebSocketUpgradeHandler
         requestContext.Headers.Add("Sec-WebSocket-Key", secWebSocketKey);
         requestContext.Headers.Add("Sec-WebSocket-Version", _supportedVersion);
 
-        await SendWebSocketRequestHeaders(requestContext, token);
+        await SendWebSocketRequestHeaders(requestContext, token).ConfigureAwait(false);
     }
 
     private static void ValidateRequestPath(string requestPath)
@@ -302,6 +302,6 @@ internal partial class WebSocketUpgradeHandler
         response.Headers.Add("Connection", "close");
         response.Headers.Add("Content-Type", "text/plain");
         response.Headers.Add("Content-Length", response.BodyContent.Length.ToString());
-        await SendWebSocketRejectResponse(response, cancellationToken);
+        await SendWebSocketRejectResponse(response, cancellationToken).ConfigureAwait(false);
     }
 }
