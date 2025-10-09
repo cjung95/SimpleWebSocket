@@ -56,7 +56,7 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
             {
                 try
                 {
-                    if(!client.IsConnected)
+                    if (!client.IsConnected)
                     {
                         // If the client is not connected, exit the loop.
                         _logger.LogWarning("Client is not connected. Stopping message sending loop.");
@@ -81,14 +81,14 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
             }
         }
 
-        private  void InitializeClientEvents(SimpleWebSocketClient client)
+        private void InitializeClientEvents(SimpleWebSocketClient client)
         {
             client.Disconnected += Client_Disconnected;
             client.MessageReceived += Client_MessageReceived;
             client.BinaryMessageReceived += Client_BinaryMessageReceived;
         }
 
-        private  void UnsubscribeEvents(SimpleWebSocketClient client)
+        private void UnsubscribeEvents(SimpleWebSocketClient client)
         {
             client.Disconnected -= Client_Disconnected;
             client.MessageReceived -= Client_MessageReceived;
@@ -101,12 +101,12 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
             _logger.LogInformation("Binary message received: {binaryMessage}", BitConverter.ToString(e.Message));
         }
 
-        private  void Client_MessageReceived(object sender, MessageReceivedArgs e)
+        private void Client_MessageReceived(object sender, MessageReceivedArgs e)
         {
             _logger.LogInformation("Message received: {message}", e.Message);
         }
 
-        private  void Client_Disconnected(object sender, DisconnectedArgs e)
+        private void Client_Disconnected(object sender, DisconnectedArgs e)
         {
             _logger.LogInformation("Disconnected");
         }

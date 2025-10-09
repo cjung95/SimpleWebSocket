@@ -99,13 +99,13 @@ namespace Jung.SimpleWebSocket
 
         /// <summary>
         /// A flag indicating whether the server is disposed.
-        /// <para>0 = false, 1 = true</para>s
+        /// <para>0 = false, 1 = true</para>
         /// </summary>
         private int _disposed;
 
         /// <summary>
         /// A flag indicating whether the server is disposing.
-        /// <para>0 = false, 1 = true</para>s
+        /// <para>0 = false, 1 = true</para>
         /// </summary>
         private int _disposing;
 
@@ -222,7 +222,7 @@ namespace Jung.SimpleWebSocket
                 }
                 catch
                 {
-                    // Ignore the exception, because it's no the servers problem if a client does not close the connection
+                    // Ignore the exception, because it's not the server's problem if a client does not close the connection
                 }
             }
 
