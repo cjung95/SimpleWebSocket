@@ -167,7 +167,7 @@ namespace Jung.SimpleWebSocket.UnitTests
                 var IpAddress = (args.Client.RemoteEndPoint as IPEndPoint)?.Address;
                 if (IpAddress == null)
                 {
-                    args.Handle = false;
+                    args.AcceptRequest = false;
                     return;
                 }
 
@@ -177,7 +177,7 @@ namespace Jung.SimpleWebSocket.UnitTests
                 {
                     args.ResponseContext.StatusCode = HttpStatusCode.Forbidden;
                     args.ResponseContext.BodyContent = "Connection only possible via local network.";
-                    args.Handle = false;
+                    args.AcceptRequest = false;
                 }
                 args.Client.Properties["test"] = "test";
             };

@@ -105,7 +105,7 @@ internal partial class WebSocketUpgradeHandler
     private async Task SendWebSocketRejectResponse(WebContext context, CancellationToken cancellationToken)
     {
         var sb = new StringBuilder(
-            $"HTTP/1.1 409 Conflict\r\n");
+            $"HTTP/1.1 {(int)context.StatusCode} {context.StatusDescription}\r\n");
         AddHeaders(context, sb);
         CompleteHeaderSection(sb);
         AddBody(context, sb);
@@ -299,9 +299,22 @@ internal partial class WebSocketUpgradeHandler
 
     internal async Task RejectWebSocketAsync(WebContext response, CancellationToken cancellationToken)
     {
+        // This header is optional, but recommended to inform the client that the connection will be closed
         response.Headers.Add("Connection", "close");
-        response.Headers.Add("Content-Type", "text/plain");
-        response.Headers.Add("Content-Length", response.BodyContent.Length.ToString());
+
+        // If there is body content, ensure Content-Type and Content-Length headers are set
+        if (!string.IsNullOrEmpty(response.BodyContent))
+        {
+            // Set default Content-Type if not already set
+            if (response.Headers["Content-Type"] == null)
+            {
+                response.Headers.Add("Content-Type", "text/plain");
+            }
+            // Set Content-Length based on the body content length
+            response.Headers.Add("Content-Length", response.BodyContent.Length.ToString());
+        }
+
+        // Send the rejection response
         await SendWebSocketRejectResponse(response, cancellationToken).ConfigureAwait(false);
     }
 }

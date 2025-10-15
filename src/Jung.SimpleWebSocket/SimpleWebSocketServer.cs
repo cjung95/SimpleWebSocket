@@ -12,6 +12,7 @@ using Jung.SimpleWebSocket.Wrappers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
@@ -267,8 +268,26 @@ namespace Jung.SimpleWebSocket
         {
             ThrowIfDisposed();
 
-            if (!ActiveClients.TryGetValue(clientId, out var client)) throw new WebSocketServerException(message: "Client not found");
-            return client;
+            if (TryGetClientById(clientId, out var client))
+            {
+                return client;
+            }
+            throw new WebSocketServerException(message: "Client not found");
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetClientById(string clientId, [NotNullWhen(true)] out WebSocketServerClient? client)
+        {
+            ThrowIfDisposed();
+
+            if (ActiveClients.TryGetValue(clientId, out client))
+            {
+                if (client != null)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <inheritdoc/>
@@ -305,7 +324,7 @@ namespace Jung.SimpleWebSocket
                 var eventArgs = await flow.RaiseUpgradeEventAsync(ClientUpgradeRequestReceivedAsync).ConfigureAwait(false);
 
                 // Respond to the upgrade request
-                if (eventArgs.Handle)
+                if (eventArgs.AcceptRequest)
                 {
                     // Accept the WebSocket connection
                     await flow.AcceptWebSocketAsync().ConfigureAwait(false);
@@ -332,10 +351,6 @@ namespace Jung.SimpleWebSocket
             catch (OperationCanceledException)
             {
                 // Ignore the exception, because it is thrown when cancellation is requested
-            }
-            catch (UserNotHandledException userNotHandledException)
-            {
-                await flow.RejectWebSocketAsync(userNotHandledException.ResponseContext).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
@@ -407,7 +422,7 @@ namespace Jung.SimpleWebSocket
                 // if we leave the loop, the client disconnected
                 if (!IsShuttingDown)
                 {
-                    AsyncEventRaiser.RaiseAsyncInNewTask(ClientDisconnected, this, new ClientDisconnectedArgs(closeStatusDescription, client.Id), cancellationToken);
+                    AsyncEventRaiser.RaiseAsyncInNewTask(ClientDisconnected, this, new ClientDisconnectedArgs(closeStatusDescription, client), cancellationToken);
                 }
             }
         }
@@ -422,10 +437,19 @@ namespace Jung.SimpleWebSocket
 
             try
             {
+                // unsubscribe all event handlers
+                ClientConnected = null;
+                ClientDisconnected = null;
+                MessageReceived = null;
+                BinaryMessageReceived = null;
+                ClientUpgradeRequestReceivedAsync = null;
+
+                // shutdown server and free resources
                 ShutdownServer().GetAwaiter().GetResult();
                 _cancellationTokenSource?.Cancel();
                 _tcpListener?.Dispose();
                 _tcpListener = null;
+
                 GC.SuppressFinalize(this);
             }
             finally
