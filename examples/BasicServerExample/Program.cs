@@ -53,7 +53,7 @@ namespace BasicServerExample
         private static void SimpleWebSocketServer_BinaryMessageReceived(object? sender, ClientBinaryMessageReceivedArgs e)
         {
             // Convert the binary message to a hex string
-            string hex = BitConverter.ToString(e.Message).Replace("-", " ");
+            string hex = BitConverter.ToString(e.Message);
             Console.WriteLine($"Binary message received from {e.ClientId}: {hex}");
         }
 
