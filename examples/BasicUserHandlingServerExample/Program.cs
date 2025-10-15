@@ -49,7 +49,11 @@ namespace BasicUserHandlingServerExample
             // simpleWebSocketServer.ShutdownServer().Wait();
         }
 
-
+        /// <summary>
+        /// This event is triggered when a client successfully connects to the server.
+        /// </summary>
+        /// <param name="sender">The server that the client connected to.</param>
+        /// <param name="e">The event arguments containing the client ID.</param>
         private static void SimpleWebSocketServer_ClientConnected(object? sender, ClientConnectedArgs e)
         {
             if (((SimpleWebSocketServer)sender!).GetClientById(e.ClientId) is WebSocketServerClient client)
@@ -58,6 +62,11 @@ namespace BasicUserHandlingServerExample
             }
         }
 
+        /// <summary>
+        /// This event is triggered when a client disconnects from the server.
+        /// </summary>
+        /// <param name="sender">The server that the client disconnected from.</param>
+        /// <param name="e">The event arguments containing the client and the disconnection details.</param>
         private static void SimpleWebSocketServer_ClientDisconnected(object? sender, ClientDisconnectedArgs e)
         {
             // Remove the user from the connected users list
@@ -66,6 +75,12 @@ namespace BasicUserHandlingServerExample
             Console.WriteLine($"User name {userName} disconnected.");
         }
 
+
+        /// <summary>
+        /// This event is triggered when a text message is received from a client.
+        /// </summary>
+        /// <param name="sender">The server that received the message.</param>
+        /// <param name="e">The event arguments containing the client ID and the message.</param>
         private static void SimpleWebSocketServer_MessageReceived(object? sender, ClientMessageReceivedArgs e)
         {
             if (((SimpleWebSocketServer)sender!).GetClientById(e.ClientId) is WebSocketServerClient client)

@@ -57,6 +57,14 @@ namespace BasicUserHandlingClientExample
             }
         }
 
+        /// <summary>
+        /// Handles the event triggered before a WebSocket upgrade request is sent, allowing customization of the
+        /// request.
+        /// </summary>
+        /// <param name="sender">The source of the event, the WebSocket client instance.</param>
+        /// <param name="e">The event arguments containing details about the upgrade request, including headers and other context.</param>
+        /// <param name="cancellationToken">The cancellation token of the client.</param>
+        /// <returns>A completed task, as this method performs its operation synchronously.</returns>
         private static Task SimpleWebSocketClient_SendingUpgradeRequestAsync(object sender, SendingUpgradeRequestArgs e, CancellationToken cancellationToken)
         {
             // Add a custom header to the upgrade request
@@ -64,7 +72,6 @@ namespace BasicUserHandlingClientExample
 
             // Because this is a synchronous method, we return a completed task.
             return Task.CompletedTask;
-
         }
     }
 }
