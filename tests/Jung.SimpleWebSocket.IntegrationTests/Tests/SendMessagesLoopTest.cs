@@ -15,7 +15,7 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
             var cancellationTokenSource = new CancellationTokenSource();
             var token = cancellationTokenSource.Token;
 
-            using var client = new SimpleWebSocketClient("localhost", 8085, "", clientLogger);
+            using var client = new SimpleWebSocketClient("localhost", 8085, string.Empty, clientLogger);
 
             InitializeClientEvents(client);
 

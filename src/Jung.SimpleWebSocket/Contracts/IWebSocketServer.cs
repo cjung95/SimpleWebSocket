@@ -5,6 +5,7 @@ using Jung.SimpleWebSocket.Delegates;
 using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 
 namespace Jung.SimpleWebSocket.Contracts;
@@ -70,6 +71,14 @@ public interface IWebSocketServer : IDisposable
     /// <param name="clientId">The id of the client</param>
     /// <returns>The client</returns>
     WebSocketServerClient GetClientById(string clientId);
+
+    /// <summary>
+    /// Attempts to get a client by its id.
+    /// </summary>
+    /// <param name="clientId">The id of the client</param>
+    /// <param name="client">The client if found, otherwise null</param>
+    /// <returns><see langword="true"/> if the client was found, otherwise <see langword="false"/>.</returns>"
+    bool TryGetClientById(string clientId, [NotNullWhen(true)] out WebSocketServerClient? client);
 
     /// <summary>
     /// Sends a message to all connected clients asynchronously.

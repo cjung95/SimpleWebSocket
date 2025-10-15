@@ -16,9 +16,9 @@ public record ClientUpgradeRequestReceivedArgs(WebSocketServerClient Client, Web
     private WebContext? _responseContext;
 
     /// <summary>
-    /// Gets or sets a value indicating whether the upgrade request should be handled.
+    /// Gets or sets a value indicating whether the upgrade request should be Accepted. Default is true.
     /// </summary>
-    public bool Handle { get; set; } = true;
+    public bool AcceptRequest { get; set; } = true;
 
     /// <summary>
     /// The context that is being use to response to the client.

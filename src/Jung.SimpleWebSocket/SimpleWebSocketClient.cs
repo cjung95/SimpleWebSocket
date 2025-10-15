@@ -6,6 +6,7 @@ using Jung.SimpleWebSocket.Delegates;
 using Jung.SimpleWebSocket.Exceptions;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
+using Jung.SimpleWebSocket.Utility;
 using Jung.SimpleWebSocket.Wrappers;
 using Microsoft.Extensions.Logging;
 using System.Net.Sockets;
@@ -42,6 +43,9 @@ namespace Jung.SimpleWebSocket
         public event MessageReceivedEventHandler? MessageReceived;
         /// <inheritdoc/>
         public event BinaryMessageReceivedEventHandler? BinaryMessageReceived;
+
+        /// <inheritdoc/>
+        public event AsyncEventHandler<SendingUpgradeRequestArgs>? SendingUpgradeRequestAsync;
 
         /// <summary>
         /// The CancellationTokenSource for the client.
@@ -114,7 +118,7 @@ namespace Jung.SimpleWebSocket
                 {
                     throw new WebSocketConnectionException(message: "Error connecting to Server", innerException: exception);
                 }
-                else if (exception is WebSocketException)
+                else if (exception is WebSocketException || exception is WebSocketUpgradeException)
                 {
                     throw;
                 }
@@ -173,11 +177,25 @@ namespace Jung.SimpleWebSocket
             var socketWrapper = new WebSocketUpgradeHandler(_stream);
 
             var requestContext = WebContext.CreateRequest(HostName, Port, RequestPath);
+            requestContext = await RaiseUpgradeEventAsync(requestContext, cancellationToken).ConfigureAwait(false);
             await socketWrapper.SendUpgradeRequestAsync(requestContext, cancellationToken).ConfigureAwait(false);
             var response = await socketWrapper.AwaitContextAsync(cancellationToken).ConfigureAwait(false);
             WebSocketUpgradeHandler.ValidateUpgradeResponse(response, requestContext);
 
             _webSocket = socketWrapper.CreateWebSocket(isServer: false);
+        }
+
+        /// <summary>
+        /// Raises the upgrade event.
+        /// </summary>
+        /// <param name="requestContext">The request context to use for the upgrade event</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <returns>The event arguments of the upgrade request.</returns>
+        internal async Task<WebContext> RaiseUpgradeEventAsync(WebContext requestContext, CancellationToken cancellationToken)
+        {
+            var eventArgs = new SendingUpgradeRequestArgs(requestContext, _logger);
+            await AsyncEventRaiser.RaiseAsync(SendingUpgradeRequestAsync, this, eventArgs, cancellationToken).ConfigureAwait(false);
+            return requestContext;
         }
 
         /// <inheritdoc/>
@@ -264,9 +282,17 @@ namespace Jung.SimpleWebSocket
         {
             if (Interlocked.Exchange(ref _disposed, 1) == 0)
             {
+                // Unsubscribe all event handlers
+                Disconnected = null;
+                MessageReceived = null;
+                BinaryMessageReceived = null;
+                SendingUpgradeRequestAsync = null;
+
+                // Dispose managed resources
                 _cancellationTokenSource?.Cancel();
                 _stream?.Dispose();
                 _client?.Dispose();
+
                 GC.SuppressFinalize(this);
             }
         }

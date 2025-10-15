@@ -2,6 +2,7 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket.Delegates;
+using Jung.SimpleWebSocket.Models.EventArguments;
 
 namespace Jung.SimpleWebSocket.Contracts;
 
@@ -44,6 +45,15 @@ public interface IWebSocketClient : IDisposable
     /// Event that is raised when a client is disconnected.
     /// </summary>
     event DisconnectedEventHandler? Disconnected;
+
+    /// <summary>
+    /// Occurs before an upgrade request is sent, allowing the request to be inspected or modified asynchronously.
+    /// </summary>
+    /// <remarks>This event is triggered when an upgrade request is about to be sent. Subscribers can use this
+    /// event  to inspect or modify the request by handling the <see cref="SendingUpgradeRequestArgs"/> parameter.  The
+    /// event handler is asynchronous, so any modifications or operations should be performed within the  provided
+    /// asynchronous context.</remarks>
+    event AsyncEventHandler<SendingUpgradeRequestArgs>? SendingUpgradeRequestAsync;
 
     /// <summary>
     /// Sends a message to all connected clients asynchronously.

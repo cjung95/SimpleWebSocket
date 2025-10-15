@@ -89,7 +89,16 @@ namespace Jung.SimpleWebSocket.Flows
         /// <param name="responseContext">The response context to send to the client.</param>
         internal async Task RejectWebSocketAsync(WebContext responseContext)
         {
-            // The client is rejected
+            // If the status code is SwitchingProtocols, change it to BadRequest
+            if (responseContext.StatusCode == System.Net.HttpStatusCode.SwitchingProtocols)
+            {
+                // If we would send a SwitchingProtocols status code, the client would expect a WebSocket connection.
+                // We want to reject the connection, so we send a BadRequest status code.
+                // We could get here if the user sets the status code to SwitchingProtocols in the upgrade event.
+                responseContext.StatusCode = System.Net.HttpStatusCode.BadRequest;
+            }
+
+            // Reject the client
             await _upgradeHandler!.RejectWebSocketAsync(responseContext, _cancellationToken).ConfigureAwait(false);
             Cleanup();
         }

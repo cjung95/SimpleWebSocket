@@ -56,7 +56,7 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
 
         private void SimpleWebSocketServer_ClientDisconnected(object? sender, ClientDisconnectedArgs e)
         {
-            _logger.LogInformation("Client disconnected: {ClientId}", e.ClientId);
+            _logger.LogInformation("Client disconnected: {ClientId}", e.Client.Id);
         }
 
         private void SimpleWebSocketServer_MessageReceived(object? sender, ClientMessageReceivedArgs e)
