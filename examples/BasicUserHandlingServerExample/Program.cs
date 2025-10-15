@@ -22,7 +22,7 @@ namespace BasicUserHandlingServerExample
             // Create server options
             var serverOptions = new SimpleWebSocketServerOptions()
             {
-                // Set the server to listen on port 8080 and localhost
+                // Set the server to listen on port 8085 and localhost
                 Port = 8085,
                 LocalIpAddress = new System.Net.IPAddress([127, 0, 0, 1])
             };
