@@ -4,6 +4,7 @@
 
 namespace Jung.SimpleWebSocket.IntegrationTests.Tests
 {
+    [AttributeUsage(AttributeTargets.Class)]
     internal class TestInformationAttribute : Attribute
     {
         public string Role { get; set; } = string.Empty;

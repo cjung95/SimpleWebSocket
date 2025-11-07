@@ -5,7 +5,7 @@ using Jung.SimpleWebSocket;
 using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
 
-namespace BasicServerExample
+namespace LargeFileTransferServerExample
 {
     internal class Program
     {
@@ -17,9 +17,21 @@ namespace BasicServerExample
             // Create server options
             var serverOptions = new SimpleWebSocketServerOptions()
             {
-                // Set the server to listen on port 8080 and all IP addresses
+                // Set the server to listen on port 8080 and localhost
                 Port = 8080,
-                LocalIpAddress = System.Net.IPAddress.Any,
+                LocalIpAddress = new System.Net.IPAddress([0, 0, 0, 0]),
+
+                // Configure the server to stream binary messages to temporary files
+                MessageProcessingMode = BinaryMessageProcessingMode.StreamBinaryToFile,
+                TempFilesPath = Path.GetTempPath(),
+
+                // Delete temporary files automatically after processing
+                AutoDeleteTempFiles = true,
+
+                // set buffer sizes and max message sizes
+                ChunkSize = 4 * 1024, // 4 KB
+                FileStreamBufferSize = 4 * 1024, // 4 KB
+                MaxMessageBytes = 10L * 1024 * 1024 * 1024, // 10 GB
             };
 
             // Create the WebSocket server
@@ -29,7 +41,7 @@ namespace BasicServerExample
             simpleWebSocketServer.ClientConnected += (s, e) => Console.WriteLine($"Client connected: {e.ClientId}");
             simpleWebSocketServer.ClientDisconnected += (s, e) => Console.WriteLine($"Client disconnected: {e.Client.Id}, Reason: {e.ClosingStatusDescription}");
             simpleWebSocketServer.MessageReceived += (s, e) => Console.WriteLine($"Message received from {e.ClientId}: {e.Message}");
-            simpleWebSocketServer.BinaryMessageReceived += SimpleWebSocketServer_BinaryMessageReceived;
+            simpleWebSocketServer.BinaryMessageSaved += SimpleWebSocketServer_BinaryMessageSaved;
             simpleWebSocketServer.ClientUpgradeRequestReceivedAsync += SimpleWebSocketServer_ClientUpgradeRequestReceivedAsync;
 
             // Start the server
@@ -45,15 +57,38 @@ namespace BasicServerExample
         }
 
         /// <summary>
-        /// This event is triggered when a client sends a binary message to the server.
+        /// Handles the event triggered when a binary message is saved by the WebSocket server.
         /// </summary>
-        /// <param name="sender">The server that received the binary message.</param>
-        /// <param name="e">The event arguments containing the client ID and the binary message.</param>
-        private static void SimpleWebSocketServer_BinaryMessageReceived(object? sender, ClientBinaryMessageReceivedArgs e)
+        /// <remarks>This method processes the binary message stream by copying it to a specified file
+        /// location. After processing, it ensures that the server-side cleanup is performed by calling <see
+        /// cref="ClientBinaryMessageSavedArgs.CompleteProcessingAsync"/>. If an exception occurs during processing, the
+        /// cleanup method is still invoked to maintain server consistency.</remarks>
+        /// <param name="sender">The source of the event. This parameter is optional and may be <see langword="null"/>.</param>
+        /// <param name="e">An instance of <see cref="ClientBinaryMessageSavedArgs"/> containing the binary message stream and methods
+        /// for processing completion.</param>
+        private static async void SimpleWebSocketServer_BinaryMessageSaved(object? sender, ClientBinaryMessageSavedArgs e)
         {
-            // Convert the binary message to a hex string
-            string hex = BitConverter.ToString(e.Message);
-            Console.WriteLine($"Binary message received from {e.ClientId}: {hex}");
+            try
+            {
+                // consume the stream (copy to somewhere, process it, etc.)
+                var destinationPath = Path.Combine(Path.GetTempPath(), "copy.temp");
+                using var destination = File.Create(destinationPath);
+                await e.Stream.CopyToAsync(destination);
+                await destination.FlushAsync();
+
+                // Alternatively, you can process the stream directly without saving it to another file.
+                // Or you use the saved file directly by using e.TempFilePath.
+
+                // When finished call this to tell server it can clean up
+                // If the option AutoDeleteTempFiles in the server options is set to true, the temp file is deleted now.
+                await e.CompleteProcessingAsync();
+            }
+            catch
+            {
+                // still call CompleteProcessingAsync to ensure server-side cleanup occurs
+                await e.CompleteProcessingAsync();
+                throw;
+            }
         }
 
         /// <summary>

@@ -24,37 +24,7 @@ You can install Jung.SimpleWebSocket via NuGet package manager or by manually do
 
 ## Usage
 
-Using Jung.SimpleWebSocket is straightforward. Here's a simple example for the server:
-
-```csharp
-// Import the Jung.SimpleWebSocket namespace
-using Jung.SimpleWebSocket;
-
-// Create a WebSocket server
-var server = new SimpleWebSocketServer(System.Net.IPAddress.Any, 8010);
-server.ClientConnected += (sender, e) => System.Console.WriteLine($"Client connected");
-server.MessageReceived += (sender, e) => System.Console.WriteLine($"Message received: {e.Message}");
-server.ClientDisconnected += (sender, e) => System.Console.WriteLine($"Client disconnected");
-server.Start(CancellationToken.None);
-```
-
-And here's a simple example for the client:
-
-```csharp
-// Import the Jung.SimpleWebSocket namespace
-using Jung.SimpleWebSocket;
-
-// Create a WebSocket client and send "Hello World!"
-var client = new SimpleWebSocketClient(System.Net.IPAddress.Loopback.ToString(), 8010, "/");
-client.MessageReceived += (sender, e) => Console.WriteLine(e.Message);
-client.BinaryMessageReceived += (sender, e) => Console.WriteLine(e.Message);
-client.Disconnected += (sender, e) => Console.WriteLine("Disconnected");
-await client.ConnectAsync(CancellationToken.None);
-await client.SendMessageAsync("Hello World!", CancellationToken.None);
-await client.DisconnectAsync();
-```
-
-For more advanced usage and configuration options, please refer to the [documentation](https://github.com/cjung95/SimpleWebSocket/wiki).
+Using Jung.SimpleWebSocket is straightforward. For ready-to-run server and client examples, see the `examples/` folder on the [Jung.SimpleWebSocket GitHub repository](https://github.com/cjung95/SimpleWebSocket).
 
 ## Contributing
 

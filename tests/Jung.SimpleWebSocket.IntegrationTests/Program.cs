@@ -2,7 +2,6 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket.IntegrationTests.Tests;
-using Jung.SimpleWebSocket.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -14,8 +13,7 @@ namespace Jung.SimpleWebSocket.IntegrationTests
         /// <summary>
         /// Main entry point for the application.
         /// </summary>
-        /// <param name="args">The command line arguments.</param>
-        public static async Task Main(string[] args)
+        public static async Task Main()
         {
             var procedureProvider = new ProcedureProvider();
 
@@ -89,16 +87,12 @@ namespace Jung.SimpleWebSocket.IntegrationTests
             serviceCollection.AddSerilog();
             serviceCollection.AddLogging();
 
-            serviceCollection.AddSingleton<DisplayEventsTest>();
-            serviceCollection.AddSingleton<SendMessagesLoopTest>();
-            serviceCollection.AddSingleton<SimpleWebSocketServer>();
+            serviceCollection.AddSingleton<DisplayEvents1Test>();
+            serviceCollection.AddSingleton<DisplayEvents2Test>();
+            serviceCollection.AddSingleton<SendTextMessagesLoopTest>();
+            serviceCollection.AddSingleton<SendBinaryMessagesLoopTest>();
             serviceCollection.AddSingleton<SimpleWebSocketClient>();
 
-            serviceCollection.Configure<SimpleWebSocketServerOptions>(options =>
-            {
-                options.LocalIpAddress = System.Net.IPAddress.Any;
-                options.Port = 8085;
-            });
             return serviceCollection.BuildServiceProvider();
         }
     }

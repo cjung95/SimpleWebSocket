@@ -4,7 +4,7 @@
 using Jung.SimpleWebSocket;
 using Jung.SimpleWebSocket.Models;
 
-namespace BasicClientExample
+namespace LargeFileTransferClientExample
 {
     internal class Program
     {
@@ -39,16 +39,10 @@ namespace BasicClientExample
                 Thread.Sleep(1000);
 
                 // Send a message to the server
-                Console.WriteLine("Sending message to the server: Hello, Server!");
-                await simpleWebSocketClient.SendTextMessageAsync("Hello, Server!");
+                Console.WriteLine("Sending large file to the server...");
+                await simpleWebSocketClient.SendFileAsync(@"C:\path\to\large\file.dat");
 
-                byte[] binaryMessage = [0x01, 0x02, 0x03, 0x04, 0x05];
-                Console.WriteLine("Sending binary message to the server: " + BitConverter.ToString(binaryMessage));
-                await simpleWebSocketClient.SendBinaryDataAsync(binaryMessage);
-
-                // Keep the client running until a key is pressed
-                Console.WriteLine("Press Enter to stop the client...");
-                Console.ReadKey();
+                Console.WriteLine("File sent, now closing the client.");
 
                 // You do not have to explicitly disconnect the client because of the using statement
                 // We do it anyway to send the server the closing status description
@@ -56,6 +50,7 @@ namespace BasicClientExample
             }
             catch (Exception exception)
             {
+
                 var exceptionMessage = exception.Message;
                 if (exception.InnerException != null)
                 {

@@ -2,6 +2,7 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket;
+using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
 
 namespace BasicUserHandlingClientExample
@@ -11,11 +12,18 @@ namespace BasicUserHandlingClientExample
         /// <summary>
         /// An example of a basic WebSocket client using the Jung.SimpleWebSocket library.
         /// </summary>
-        /// <param name="args"></param>
-        static void Main(string[] args)
+        static async Task Main()
         {
-            // Create the WebSocket client and connect to the server at ws://127.0.0.1:8085/chat
-            using var simpleWebSocketClient = new SimpleWebSocketClient("127.0.0.1", 8085, "/chat");
+            // Create client options
+            var clientOptions = new SimpleWebSocketClientOptions
+            {
+                IPAddress = System.Net.IPAddress.Loopback,
+                Port = 8080,
+                RequestPath = "/chat"
+            };
+
+            // Create the WebSocket client
+            using var simpleWebSocketClient = new SimpleWebSocketClient(clientOptions);
 
             // Subscribe to client events
             simpleWebSocketClient.Disconnected += (s, e) => Console.WriteLine($"Disconnected from the server. Reason: {e.ClosingStatusDescription}");
@@ -26,21 +34,26 @@ namespace BasicUserHandlingClientExample
             try
             {
                 // Connect to the server
-                simpleWebSocketClient.ConnectAsync().GetAwaiter().GetResult();
+                await simpleWebSocketClient.ConnectAsync();
 
                 // Simulate any delay
                 Thread.Sleep(1000);
 
                 // Send a message to the server
                 Console.WriteLine("Sending message to the server: Hello, Server!");
-                simpleWebSocketClient.SendMessageAsync("Hello, Server!").GetAwaiter().GetResult();
+                await simpleWebSocketClient.SendTextMessageAsync("Hello, Server!");
+
+                byte[] binaryMessage = [0x01, 0x02, 0x03, 0x04, 0x05];
+                Console.WriteLine("Sending binary message to the server: " + BitConverter.ToString(binaryMessage));
+                await simpleWebSocketClient.SendBinaryDataAsync(binaryMessage);
 
                 // Keep the server running until a key is pressed
-                Console.WriteLine("Press Enter to stop the server...");
+                Console.WriteLine("Press Enter to stop the client...");
                 Console.ReadKey();
 
                 // You do not have to explicitly disconnect the client because of the using statement
-                // simpleWebSocketClient.DisconnectAsync("Client is shutting down").GetAwaiter().GetResult();
+                // We do it anyway to send the server the closing status description
+                await simpleWebSocketClient.DisconnectAsync("Client is shutting down");
             }
             catch (Exception exception)
             {

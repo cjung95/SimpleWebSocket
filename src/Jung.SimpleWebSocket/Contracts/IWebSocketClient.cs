@@ -14,7 +14,7 @@ public interface IWebSocketClient : IDisposable
     /// <summary>
     /// Gets the local ip address of the WebSocket server.
     /// </summary>
-    string HostName { get; }
+    string Host { get; }
 
     /// <summary>
     /// Gets the port of the WebSocket server.
@@ -34,17 +34,22 @@ public interface IWebSocketClient : IDisposable
     /// <summary>
     /// Event that is raised when a message is received from a client.
     /// </summary>
-    event MessageReceivedEventHandler? MessageReceived;
+    event EventHandler<MessageReceivedArgs>? MessageReceived;
 
     /// <summary>
     /// Event that is raised when a binary message is received from a client.
     /// </summary>
-    event BinaryMessageReceivedEventHandler? BinaryMessageReceived;
+    event EventHandler<BinaryMessageReceivedArgs>? BinaryMessageReceived;
+
+    /// <summary>
+    /// Event that is raised when a binary message was streamed to disk.
+    /// </summary>
+    event EventHandler<BinaryMessageSavedArgs>? BinaryMessageSaved;
 
     /// <summary>
     /// Event that is raised when a client is disconnected.
     /// </summary>
-    event DisconnectedEventHandler? Disconnected;
+    event EventHandler<DisconnectedArgs>? Disconnected;
 
     /// <summary>
     /// Occurs before an upgrade request is sent, allowing the request to be inspected or modified asynchronously.
@@ -61,14 +66,30 @@ public interface IWebSocketClient : IDisposable
     /// <param name="message">The message to send.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SendMessageAsync(string message, CancellationToken? cancellationToken = null);
+    Task SendTextMessageAsync(string message, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends binary data to the connected WebSocket server.
+    /// </summary>
+    /// <param name="data">The binary payload to send.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <returns>A task representing the asynchronous send operation.</returns>
+    Task SendBinaryDataAsync(byte[] data, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a file as binary data to the connected WebSocket server.
+    /// </summary>
+    /// <param name="filePath">The path to the file to send.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task SendFileAsync(string filePath, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Starts the WebSocket server asynchronously.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task ConnectAsync(CancellationToken? cancellationToken = null);
+    Task ConnectAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stops the WebSocket server asynchronously.
@@ -76,5 +97,5 @@ public interface IWebSocketClient : IDisposable
     /// <param name="closingStatusDescription">The description why the closing status is initiated.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task DisconnectAsync(string closingStatusDescription = "Closing", CancellationToken? cancellationToken = null);
+    Task DisconnectAsync(string closingStatusDescription = "Closing", CancellationToken cancellationToken = default);
 }

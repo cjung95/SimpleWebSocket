@@ -19,8 +19,9 @@ namespace Jung.SimpleWebSocket.Flows
     /// </remarks>
     /// <param name="client">The client to handle.</param>
     /// <param name="server">The server that handles the client.</param>
+    /// <param name="logger">The logger to log messages</param>
     /// <param name="cancellationToken">The cancellation token of the server.</param>
-    internal class ClientHandlingFlow(SimpleWebSocketServer server, WebSocketServerClient client, CancellationToken cancellationToken)
+    internal class ClientHandlingFlow(SimpleWebSocketServer server, WebSocketServerClient client, ILogger? logger, CancellationToken cancellationToken)
     {
         /// <summary>
         /// Gets the client associated with the flow.
@@ -43,6 +44,11 @@ namespace Jung.SimpleWebSocket.Flows
         private WebContext? _responseContext = null;
 
         /// <summary>
+        /// Represents an internal utility for raising asynchronous events.
+        /// </summary>
+        private readonly AsyncEventRaiser _asyncEventRaiser = new(logger);
+
+        /// <summary>
         /// Gets the active clients of the server.
         /// </summary>
         private readonly ConcurrentDictionary<string, WebSocketServerClient> _activeClients = server.ActiveClients;
@@ -50,7 +56,7 @@ namespace Jung.SimpleWebSocket.Flows
         /// <summary>
         /// Gets the logger of the server.
         /// </summary>
-        private readonly ILogger? _logger = server.Logger;
+        private readonly ILogger? _logger = logger;
 
         /// <summary>
         /// Gets the cancellation token of the server.
@@ -122,7 +128,7 @@ namespace Jung.SimpleWebSocket.Flows
         internal async Task<ClientUpgradeRequestReceivedArgs> RaiseUpgradeEventAsync(AsyncEventHandler<ClientUpgradeRequestReceivedArgs>? clientUpgradeRequestReceivedAsync)
         {
             var eventArgs = new ClientUpgradeRequestReceivedArgs(Client, Request!, _logger);
-            await AsyncEventRaiser.RaiseAsync(clientUpgradeRequestReceivedAsync, server, eventArgs, _cancellationToken).ConfigureAwait(false);
+            await _asyncEventRaiser.RaiseAsync(clientUpgradeRequestReceivedAsync, server, eventArgs, _cancellationToken).ConfigureAwait(false);
             _responseContext = eventArgs.ResponseContext;
             return eventArgs;
         }

@@ -16,14 +16,13 @@ namespace BasicUserHandlingServerExample
         /// <summary>
         /// An example of a basic WebSocket server using the Jung.SimpleWebSocket library.
         /// </summary>
-        /// <param name="args"></param>
-        static void Main(string[] args)
+        static void Main()
         {
             // Create server options
             var serverOptions = new SimpleWebSocketServerOptions()
             {
                 // Set the server to listen on port 8085 and localhost
-                Port = 8085,
+                Port = 8080,
                 LocalIpAddress = new System.Net.IPAddress([127, 0, 0, 1])
             };
 
@@ -39,14 +38,14 @@ namespace BasicUserHandlingServerExample
 
             // Start the server
             simpleWebSocketServer.Start();
-            Console.WriteLine($"Server started on ws://{serverOptions.LocalIpAddress}:{serverOptions.Port}");
+            Console.WriteLine("Server started, now listening for clients...");
 
             // Keep the server running until a key is pressed
             Console.WriteLine("Press Enter to stop the server...");
             Console.ReadKey();
 
             // You do not have to explicitly shutdown the server because of the using statement
-            // simpleWebSocketServer.ShutdownServer().Wait();
+            // simpleWebSocketServer.ShutdownServerAsync().Wait();
         }
 
         /// <summary>
@@ -96,9 +95,12 @@ namespace BasicUserHandlingServerExample
         /// <param name="e">The event arguments containing the client ID and the binary message.</param>
         private static void SimpleWebSocketServer_BinaryMessageReceived(object? sender, ClientBinaryMessageReceivedArgs e)
         {
-            // Convert the binary message to a hex string
-            string hex = BitConverter.ToString(e.Message);
-            Console.WriteLine($"Binary message received from {e.ClientId}: {hex}");
+            if (((SimpleWebSocketServer)sender!).GetClientById(e.ClientId) is WebSocketServerClient client)
+            {
+                // Convert the binary message to a hex string
+                string hex = BitConverter.ToString(e.Message);
+                Console.WriteLine($"Message received from {client.Properties["UserName"]}: {hex}");
+            }
         }
 
         /// <summary>

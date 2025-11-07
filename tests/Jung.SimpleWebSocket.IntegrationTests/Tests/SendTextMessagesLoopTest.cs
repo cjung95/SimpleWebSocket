@@ -2,20 +2,30 @@
 // The project is licensed under the MIT license.
 
 using Jung.SimpleWebSocket.Exceptions;
+using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
 using Microsoft.Extensions.Logging;
 
 namespace Jung.SimpleWebSocket.IntegrationTests.Tests
 {
-    [TestInformation(Role = "Client", Description = "Stability test - Sends messages at random times (between 5s and 20s)")]
-    internal class SendMessagesLoopTest(ILogger<SendMessagesLoopTest> logger, ILogger<SimpleWebSocketClient> clientLogger) : BaseTest(logger)
+    [TestInformation(Role = "Client", Description = "Stability test - Sends text messages at random times (between 5s and 20s)")]
+    internal class SendTextMessagesLoopTest(ILogger<SendTextMessagesLoopTest> logger, ILogger<SimpleWebSocketClient> clientLogger) : BaseTest(logger)
     {
         internal override async Task RunAsync()
         {
             var cancellationTokenSource = new CancellationTokenSource();
             var token = cancellationTokenSource.Token;
 
-            using var client = new SimpleWebSocketClient("localhost", 8085, string.Empty, clientLogger);
+            // Create client options
+            var clientOptions = new SimpleWebSocketClientOptions
+            {
+                IPAddress = System.Net.IPAddress.Loopback,
+                Port = 8085,
+                RequestPath = string.Empty
+            };
+
+            // Create the WebSocket client
+            using var client = new SimpleWebSocketClient(clientOptions, clientLogger);
 
             InitializeClientEvents(client);
 
@@ -64,7 +74,7 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
                     }
 
                     string message = $"Message {messageCount++} sent at {DateTime.Now}";
-                    await client.SendMessageAsync(message, cancellationToken).ConfigureAwait(false);
+                    await client.SendTextMessageAsync(message, cancellationToken).ConfigureAwait(false);
                     _logger.LogInformation("Sent: {message}", message);
 
                     int delay = random.Next(5000, 20001); // Random delay between 5s (5000ms) and 20s (20000ms)
@@ -96,17 +106,17 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
         }
 
 
-        private void Client_BinaryMessageReceived(object sender, BinaryMessageReceivedArgs e)
+        private void Client_BinaryMessageReceived(object? sender, BinaryMessageReceivedArgs e)
         {
             _logger.LogInformation("Binary message received: {binaryMessage}", BitConverter.ToString(e.Message));
         }
 
-        private void Client_MessageReceived(object sender, MessageReceivedArgs e)
+        private void Client_MessageReceived(object? sender, MessageReceivedArgs e)
         {
             _logger.LogInformation("Message received: {message}", e.Message);
         }
 
-        private void Client_Disconnected(object sender, DisconnectedArgs e)
+        private void Client_Disconnected(object? sender, DisconnectedArgs e)
         {
             _logger.LogInformation("Disconnected");
         }

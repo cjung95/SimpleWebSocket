@@ -1,18 +1,33 @@
 ﻿// This file is part of the Jung SimpleWebSocket project.
 // The project is licensed under the MIT license.
 
+using Jung.SimpleWebSocket.Models;
 using Jung.SimpleWebSocket.Models.EventArguments;
 using Microsoft.Extensions.Logging;
 
 namespace Jung.SimpleWebSocket.IntegrationTests.Tests
 {
-    [TestInformation(Role = "Server", Description = "Display the events of the server.")]
-    internal class DisplayEventsTest(ILogger<DisplayEventsTest> logger, SimpleWebSocketServer simpleWebSocketServer) : BaseTest(logger)
+    [TestInformation(Role = "Server", Description = "Display the events of the server. Accumulate binary data in memory.")]
+    internal class DisplayEvents2Test : BaseTest
     {
         /// <summary>
         /// The SimpleWebSocketServer instance.
         /// </summary>
-        public SimpleWebSocketServer SimpleWebSocketServer { get; } = simpleWebSocketServer;
+        public SimpleWebSocketServer SimpleWebSocketServer { get; }
+
+        public DisplayEvents2Test(ILogger<DisplayEvents1Test> logger, ILogger<SimpleWebSocketServer> serverLogger)
+            : base(logger)
+        {
+            var serverOptions = new SimpleWebSocketServerOptions()
+            {
+                LocalIpAddress = System.Net.IPAddress.Any,
+                Port = 8085,
+                AutoDeleteTempFiles = true,
+                MessageProcessingMode = BinaryMessageProcessingMode.InMemory,
+            };
+
+            SimpleWebSocketServer = new SimpleWebSocketServer(serverOptions, serverLogger);
+        }
 
         /// <summary>
         /// Runs the server instance.
@@ -28,7 +43,7 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
 
             UnsubscribeEventHandlers();
 
-            await SimpleWebSocketServer.ShutdownServer();
+            await SimpleWebSocketServer.ShutdownServerAsync();
         }
 
         private void InitializeEventHandlers()
@@ -66,7 +81,7 @@ namespace Jung.SimpleWebSocket.IntegrationTests.Tests
 
         private void SimpleWebSocketServer_BinaryMessageReceived(object? sender, ClientBinaryMessageReceivedArgs e)
         {
-            _logger.LogInformation("Binary message received from {ClientId}: {messages}", e.ClientId, string.Join(' ', e.Message));
+            _logger.LogInformation("Binary message received from {ClientId}.  File size: {fileSize} Bytes", e.ClientId, e.Message.Length);
         }
 
         private Task ClientUpgradeRequestReceived(object sender, ClientUpgradeRequestReceivedArgs e, CancellationToken cancellationToken)
